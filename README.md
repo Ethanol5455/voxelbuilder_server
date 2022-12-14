@@ -1,3 +1,3 @@
 # voxelbuilder_server
 
- Required (Fedora) packages: `clang cmake`
+ Required packages: `clang cmake`
