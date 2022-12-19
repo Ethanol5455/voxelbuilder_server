@@ -9,9 +9,9 @@ use crate::vector_types::{Vec2, Vec3};
 use crate::world::chunk_column::CompressedSet;
 use crate::world::{BlockToPlace, Chunk};
 
-struct ChunkData {
-    position: Vec3<i32>,
-    data: Vec<CompressedSet>,
+pub struct ChunkData {
+    pub position: Vec3<i32>,
+    pub data: Vec<CompressedSet>,
 }
 
 pub struct SaveFile {
