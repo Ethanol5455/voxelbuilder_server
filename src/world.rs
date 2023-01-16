@@ -119,7 +119,7 @@ impl World {
         if chunk_position.y >= 0 && chunk_position.y <= 15 && 
             self.does_column_exist(&Vec2::new(chunk_position.x, chunk_position.z)) {
             let column = self.get_column(&Vec2::new(chunk_position.x, chunk_position.z));
-            return column.get_chunk(chunk_position.y as i8)
+            return column.get_chunk(chunk_position.y as u8)
                 .get_block(block_position_in_chunk.x as u8, block_position_in_chunk.y as u8, block_position_in_chunk.z as u8);
         }
 
@@ -138,7 +138,7 @@ impl World {
 
         if self.does_column_exist(&Vec2::new(chunk_position.x, chunk_position.z)) {
             self.get_column(&Vec2::new(chunk_position.x, chunk_position.z))
-            .get_chunk(chunk_position.y as i8)
+            .get_chunk(chunk_position.y as u8)
             .set_block(block_position_in_chunk.x as u8, block_position_in_chunk.y as u8, block_position_in_chunk.z as u8, id);
         }
     }
