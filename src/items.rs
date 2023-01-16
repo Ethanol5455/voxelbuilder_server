@@ -1,7 +1,7 @@
 use crate::vector_types::Vec2;
 
 use rlua::Lua;
-use std::{fs, collections::HashMap};
+use std::fs;
 
 pub enum ItemType {
     Air,

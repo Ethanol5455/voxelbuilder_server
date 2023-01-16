@@ -15,14 +15,16 @@ pub struct BlockToPlace {
 }
 
 pub struct World {
+    save_file: SaveFile,
     column_map: BTreeMap<i32, BTreeMap<i32, ChunkColumn>>,
     item_manager: ItemManager,
 }
 
 impl World {
     /// Creates a new world with no chunks
-    pub fn new(item_manager: ItemManager) -> World {
+    pub fn new(item_manager: ItemManager, save_file: SaveFile) -> World {
         World {
+            save_file,
             column_map: BTreeMap::new(),
             item_manager,
         }
@@ -30,14 +32,32 @@ impl World {
 
     /// Generates a new column at the given position (`x`,`y`)
     fn generate_column(&mut self, pos: &Vec2<i32>) {
-        let mut col = ChunkColumn::new(pos, 1);
+        let mut col = ChunkColumn::new(pos, 0);
 
-        // TODO: Insert generation code here
-        for i in 4..16 {
-            col.get_chunk(i).fill(0);
+        // For each chunk in column
+        for height in 0..16 {
+            let chunk_data = self.save_file.get_chunk(Vec3::new(pos.x, height, pos.y));
+            match chunk_data {
+                Some(chunk_data) => {
+                    let chunk = col.get_chunk(height as u8);
+                    let mut i = 0;
+                    for set in chunk_data.data.as_slice() {
+                        for _ in 0..set.number {
+                            chunk.set_block_i(i, set.id);
+                            i += 1;
+                        }
+                    }
+                }
+                None => {
+                    // TODO: Insert Lua-based generation code here
+                    if height < 4 {
+                        col.get_chunk(height as u8).fill(1);
+                    }
+                }
+            }
         }
         
-
+        // Insert new col into map
         if !self.column_map.contains_key(&pos.x) {
             self.column_map.insert(pos.x, BTreeMap::new());
         }
@@ -136,16 +156,22 @@ impl World {
         let chunk_position = World::world_to_chunk_position(position);
         let block_position_in_chunk = World::world_to_position_in_chunk(position);
 
-        if self.does_column_exist(&Vec2::new(chunk_position.x, chunk_position.z)) {
-            self.get_column(&Vec2::new(chunk_position.x, chunk_position.z))
+        if !self.does_column_exist(&Vec2::new(chunk_position.x, chunk_position.z)) {
+            self.generate_column(&Vec2::new(chunk_position.x, chunk_position.z));
+        }
+
+        self.get_column(&Vec2::new(chunk_position.x, chunk_position.z))
             .get_chunk(chunk_position.y as u8)
             .set_block(block_position_in_chunk.x as u8, block_position_in_chunk.y as u8, block_position_in_chunk.z as u8, id);
-        }
     }
 
-    pub fn save_to_file(&self, save: &mut crate::save_file::SaveFile) {
+    pub fn get_save_file(&mut self) -> &mut SaveFile {
+        &mut self.save_file
+    }
 
-        if save.filepath == "" {
+    pub fn save_to_file(&mut self) {
+
+        if self.save_file.filepath == "" {
             return;
         }
 
@@ -153,7 +179,7 @@ impl World {
         for column_x in self.column_map.values() {
             for column_z in column_x.values() {
                 for chunk in column_z.get_chunks() {
-                    save.save_chunk_data(chunk);
+                    self.save_file.save_chunk_data(chunk);
                 }
             }
         }
@@ -162,7 +188,7 @@ impl World {
 
 
         println!("Writing save file");
-        save.write_save();
+        self.save_file.write_save();
         println!("Save file written");
 
     }
