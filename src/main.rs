@@ -90,15 +90,18 @@ fn run() {
                     let block_pos = Vec3::<i32>::from_u8_arr(&data[1..13]);
                     let action_type = data[13];
 
+                    let existing_type = world.get_block(&block_pos);
                     if action_type == ChunkUpdateType::PlaceBlockEvent as u8 {
-                        if world.get_block(&block_pos) != 0 {
+                        if existing_type > 0 {
                             println!("Block already exists at {},{},{}", block_pos.x, block_pos.y, block_pos.z);
+                        } else if existing_type < 0 {
+                            println!("Cannot place block at invalid position {},{},{}", block_pos.x, block_pos.y, block_pos.z);
                         } else {
                             let block_id = byteorder::LittleEndian::read_u32(&data[14..18]);
                             world.set_block(&block_pos, block_id as i32);
                         }
                     } else if action_type == ChunkUpdateType::DestroyBlockEvent as u8 {
-                        if world.get_block(&block_pos) == 0 {
+                        if existing_type == 0 {
                             println!("Cannot destroy empty block at {},{},{}", block_pos.x, block_pos.y, block_pos.z);
                         } else {
                             world.set_block(&block_pos, 0);

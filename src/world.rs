@@ -116,12 +116,11 @@ impl World {
         let chunk_position = World::world_to_chunk_position(position);
         let block_position_in_chunk = World::world_to_position_in_chunk(position);
 
-        if self.does_column_exist(&Vec2::new(position.x, position.z)) {
-            let column = self.get_column(&Vec2::new(position.x, position.z));
-            if chunk_position.y >= 0 && chunk_position.y <= 15 {
-                return column.get_chunk(chunk_position.y as i8)
+        if chunk_position.y >= 0 && chunk_position.y <= 15 && 
+            self.does_column_exist(&Vec2::new(chunk_position.x, chunk_position.z)) {
+            let column = self.get_column(&Vec2::new(chunk_position.x, chunk_position.z));
+            return column.get_chunk(chunk_position.y as i8)
                 .get_block(block_position_in_chunk.x as u8, block_position_in_chunk.y as u8, block_position_in_chunk.z as u8);
-            }
         }
 
         -1
