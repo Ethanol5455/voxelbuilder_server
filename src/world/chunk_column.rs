@@ -118,7 +118,7 @@ impl ChunkColumn {
         for y in lower..(upper + 1) {
             for x in 0..16 {
                 for z in 0..16 {
-                    self.chunks.get_mut(y as usize).unwrap().set_block(x, y as u8, z, id);
+                    self.chunks.get_mut((y / 16) as usize).unwrap().set_block(x, (y % 16) as u8, z, id);
                 }
             }
         }

@@ -89,6 +89,14 @@ impl World {
             }
         }
 
+        struct ToPlaceAfter {
+            position: Vec3<i32>,
+            id: i32,
+        }
+
+        let mut set_world_after_list = Vec::<ToPlaceAfter>::new();
+        let set_world_after_list_ptr = &mut set_world_after_list as *mut Vec::<ToPlaceAfter>;
+
         if !was_saved {
             self.lua.context(|lua_ctx| {
                 let globals = lua_ctx.globals(); // Get globals from lua
@@ -104,7 +112,12 @@ impl World {
                     .exec()
                     .expect("Generate column variables failed to load");
 
-                    // TODO: Move to "new" function
+                    let rust_random =
+                        scope.create_function(|_, (): ()| {
+                            Ok(rand::random::<i32>())
+                        }).unwrap();
+                    globals.set("random", rust_random).unwrap();
+
                     let get_id_by_name =
                         scope.create_function_mut(|_, item_name: String| {
                             let id = self.item_manager.get_id_by_name(item_name);
@@ -122,8 +135,18 @@ impl World {
 
                     let set_block =
                         scope.create_function(|_, (x, y, z, id): (i32, i32, i32, i32)| {
-                            unsafe {
-                                (*col_ptr).set_block(&Vec3::new(x, y, z), id);
+                            if x >= 0 && x < 16 && y >= 0 && y < 16 {
+                                unsafe {
+                                    (*col_ptr).set_block(&Vec3::new(x, y, z), id);
+                                }
+                            } else {
+                                let to_place = ToPlaceAfter {
+                                    position: Vec3::new(pos.x * 16 + x, y, pos.y * 16 + z),
+                                    id,
+                                };
+                                unsafe {
+                                    (*set_world_after_list_ptr).push(to_place);
+                                }
                             }
                             Ok(())
                         }).unwrap();
@@ -155,6 +178,10 @@ impl World {
         self.column_map.get_mut(&pos.x)
         .unwrap()
         .insert(pos.y, col);
+
+        for to_place in set_world_after_list.as_slice() {
+            self.set_block(&to_place.position, to_place.id);
+        }
     }
 
     /// Returns whether the column at `pos` exists

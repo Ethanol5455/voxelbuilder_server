@@ -20,10 +20,11 @@ dirt_id = get_id_by_name("Dirt")
 grass_id = get_id_by_name("Grass")
 log_id = get_id_by_name("Log")
 leaves_id = get_id_by_name("Leaves")
-topGrass_id = get_id_by_name("TopGrass")
+top_grass_id = get_id_by_name("TopGrass")
 rose_id = get_id_by_name("Rose")
 
-
+set_layers(0, 0, bedrock_id)
+set_layers(1, min_gen_height - 10, stone_id)
 
 for x = 0, 15, 1
 do
@@ -37,6 +38,39 @@ do
         top_height = min_gen_height + height_offset
 
         -- Terrain Generation
-        set_layers(0, 0, bedrock_id)
+        set_block(x, top_height, z, grass_id)
+        for y = top_height - 1, top_height - 6, -1
+        do
+            set_block(x, y, z, dirt_id)
+        end
+        for y = top_height - 7, min_gen_height -9, -1
+        do
+            set_block(x, y, z, stone_id)
+        end
+
+        if(random() % tree_prob == 0)
+        then
+            tree_height = math.random(tree_log_min_height, tree_log_max_height)
+            set_block(x, top_height + tree_height + 2, z, leaves_id)
+            for xt = -2, 2, 1
+            do
+                for zt = -2, 2, 1
+                do
+                    set_block(x + xt, top_height + tree_height + 1, z + zt, leaves_id)
+                end
+            end
+
+            for y = top_height + 1, top_height + tree_height + 1, 1
+            do
+                set_block(x, y, z, log_id)
+            end
+            set_block(x, top_height, z, dirt_id)
+        elseif(random() % grass_prob == 0)
+        then
+            set_block(x, top_height + 1, z, top_grass_id)
+        elseif(random() % rose_prob == 0)
+        then
+            set_block(x, top_height + 1, z, rose_id)
+        end
     end
 end
