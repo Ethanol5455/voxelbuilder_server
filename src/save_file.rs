@@ -69,8 +69,19 @@ impl SaveFile {
             position: chunk.position,
             data: chunk.compress(),
         };
-        self.chunk_data.push(data);
 
+        let mut remove_index = usize::MAX;
+        for i in 0..self.chunk_data.len() {
+            if self.chunk_data[i].position == chunk.position {
+                remove_index = i;
+            }
+        }
+
+        if remove_index != usize::MAX {
+            self.chunk_data.remove(remove_index);
+        }
+
+        self.chunk_data.push(data)
     }
 
     pub fn write_save(&self) {
@@ -91,7 +102,7 @@ impl SaveFile {
             let file = File::create(filepath);
             if file.is_err() {
                 println!("Unable to write save file for player \"{}\" with error \"{}\"", username, file.err().unwrap());
-                break;
+                continue;
             }
             let mut file = file.unwrap();
             // Player Name
