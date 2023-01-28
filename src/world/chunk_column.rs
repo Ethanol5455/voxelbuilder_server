@@ -109,6 +109,20 @@ impl ChunkColumn {
     pub fn get_chunk<'a>(&'a mut self, i: u8) -> &'a mut Chunk {
         &mut self.chunks[i as usize]
     }
+
+    pub fn set_block(&mut self, position: &Vec3<i32>, id: i32) {
+        self.chunks.get_mut((position.y / 16) as usize).unwrap().set_block(position.x as u8, (position.y % 16) as u8, position.z as u8, id);
+    }
+
+    pub fn set_layers(&mut self, lower: u32, upper: u32, id: i32) {
+        for y in lower..(upper + 1) {
+            for x in 0..16 {
+                for z in 0..16 {
+                    self.chunks.get_mut(y as usize).unwrap().set_block(x, y as u8, z, id);
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]

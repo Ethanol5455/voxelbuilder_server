@@ -9,7 +9,8 @@
 		{
 			"type": "shell",
 			"command": "~/.cargo/bin/cargo run",
-			"label": "run debug"
+			"label": "run debug",
+			"problemMatcher": []
 		},
 		{
 			"type": "shell",
@@ -19,7 +20,8 @@
 		{
 			"type": "shell",
 			"command": "~/.cargo/bin/cargo run --release",
-			"label": "run release"
+			"label": "run release",
+			"problemMatcher": []
 		}
 	]
 }

@@ -45,7 +45,7 @@ fn run() {
 
     let save = SaveFile::load_save_file("/home/ethan/Games/voxelbuilder_server/saves/testSave".to_string());
 
-    let mut world = World::new(item_manager, save);
+    let mut world = World::new(item_manager, save, "./scripts/generateChunkColumn.lua".to_string());
 
     println!("Waiting...");
 
@@ -120,6 +120,6 @@ fn run() {
         }
     }
 
-    world.save_to_file();
+    // world.save_to_file();
 
 }

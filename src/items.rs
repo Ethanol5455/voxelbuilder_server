@@ -45,6 +45,16 @@ impl ItemManager {
         Option::None
     }
 
+    /// Gets item id from name
+    pub fn get_id_by_name(&self, name: String) -> Option<i32> {
+        for i in 0..self.items.len() {
+            if self.items.get(i).unwrap().name == name {
+                return Some(i as i32);
+            }
+        }
+        None
+    }
+
     /// Runs the lua script at the `path` and inserts the new items into the `item_manager`
     pub fn load_items(&mut self, path: String) {
         let asset_script = fs::read_to_string(path).expect("Unable to load loadAssetInfo script");

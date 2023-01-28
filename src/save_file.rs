@@ -16,7 +16,7 @@ pub struct ChunkData {
 
 pub struct SaveFile {
     pub filepath: String,
-    world_seed: u32,
+    pub world_seed: i32,
     chunk_data: Vec<ChunkData>,
     block_to_place: Vec<BlockToPlace>,
     players: HashMap<String, Player>,
