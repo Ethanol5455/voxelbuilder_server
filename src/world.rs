@@ -1,7 +1,10 @@
 pub mod chunk_column;
 pub use chunk_column::{ChunkColumn,Chunk};
 
-use std::collections::BTreeMap;
+use fast_noise_lite_rs::{FastNoiseLite, NoiseType};
+use rlua::Lua;
+use std::fs;
+use std::collections::{BTreeMap, HashMap};
 
 use crate::items::ItemManager;
 
@@ -18,22 +21,53 @@ pub struct World {
     save_file: SaveFile,
     column_map: BTreeMap<i32, BTreeMap<i32, ChunkColumn>>,
     item_manager: ItemManager,
+    lua: Lua,
+    column_script: String,
+    noise_functions: HashMap<String, FastNoiseLite>,
 }
 
 impl World {
     /// Creates a new world with no chunks
-    pub fn new(item_manager: ItemManager, save_file: SaveFile) -> World {
+    pub fn new(item_manager: ItemManager, save_file: SaveFile, column_script_path: String) -> World {
+        let seed = save_file.world_seed;
+        let mut noise_functions = HashMap::new();
+
+        let mut noise = FastNoiseLite::new(seed);
+        noise.set_noise_type(NoiseType::OpenSimplex2);
+        noise_functions.insert("OpenSimplex2".to_string(), noise);
+        let mut noise = FastNoiseLite::new(seed);
+        noise.set_noise_type(NoiseType::OpenSimplex2S);
+        noise_functions.insert("OpenSimplex2S".to_string(), noise);
+        let mut noise = FastNoiseLite::new(seed);
+        noise.set_noise_type(NoiseType::Cellular);
+        noise_functions.insert("Cellular".to_string(), noise);
+        let mut noise = FastNoiseLite::new(seed);
+        noise.set_noise_type(NoiseType::Perlin);
+        noise_functions.insert("Perlin".to_string(), noise);
+        let mut noise = FastNoiseLite::new(seed);
+        noise.set_noise_type(NoiseType::ValueCubic);
+        noise_functions.insert("ValueCubic".to_string(), noise);
+        let mut noise = FastNoiseLite::new(seed);
+        noise.set_noise_type(NoiseType::Value);
+        noise_functions.insert("Value".to_string(), noise);
+
         World {
             save_file,
             column_map: BTreeMap::new(),
             item_manager,
+            lua: Lua::new(),
+            column_script: fs::read_to_string(column_script_path).expect("Unable to load generateChunkColumn script"),
+            noise_functions,
         }
     }
 
     /// Generates a new column at the given position (`x`,`y`)
     fn generate_column(&mut self, pos: &Vec2<i32>) {
         let mut col = ChunkColumn::new(pos, 0);
+        let col_ptr = &mut col as *mut ChunkColumn;
 
+        let mut was_saved = true;
+        
         // For each chunk in column
         for height in 0..16 {
             let chunk_data = self.save_file.get_chunk(Vec3::new(pos.x, height, pos.y));
@@ -47,14 +81,93 @@ impl World {
                             i += 1;
                         }
                     }
+                    break
                 }
                 None => {
-                    // TODO: Insert Lua-based generation code here
-                    if height < 4 {
-                        col.get_chunk(height as u8).fill(1);
-                    }
+                    was_saved = false;
                 }
             }
+        }
+
+        struct ToPlaceAfter {
+            position: Vec3<i32>,
+            id: i32,
+        }
+
+        let mut set_world_after_list = Vec::<ToPlaceAfter>::new();
+        let set_world_after_list_ptr = &mut set_world_after_list as *mut Vec::<ToPlaceAfter>;
+
+        if !was_saved {
+            self.lua.context(|lua_ctx| {
+                let globals = lua_ctx.globals(); // Get globals from lua
+    
+                lua_ctx.scope(|scope| {
+                    lua_ctx.load(
+                        &format!(r#"
+                            column_x = {}
+                            column_z = {}
+                        "#, pos.x, pos.y)
+                    )
+                    .set_name("Generate column variables").unwrap()
+                    .exec()
+                    .expect("Generate column variables failed to load");
+
+                    let rust_random =
+                        scope.create_function(|_, (): ()| {
+                            Ok(rand::random::<i32>())
+                        }).unwrap();
+                    globals.set("random", rust_random).unwrap();
+
+                    let get_id_by_name =
+                        scope.create_function_mut(|_, item_name: String| {
+                            let id = self.item_manager.get_id_by_name(item_name);
+                            Ok(id)
+                        }).unwrap();
+                    globals.set("get_id_by_name", get_id_by_name).unwrap();
+                    let get_noise_2d =
+                        scope.create_function(|_, (noise_type, x, y): (String, f32, f32)| {
+                            let noise = self.noise_functions.get(noise_type.as_str()).expect(format!("Noise function {} does not exist", noise_type.as_str()).as_str());
+                            let noise_val = noise.get_noise_2d(x, y);
+                            Ok(noise_val)
+                        }).unwrap();
+                    globals.set("get_noise_2d", get_noise_2d).unwrap();
+
+
+                    let set_block =
+                        scope.create_function(|_, (x, y, z, id): (i32, i32, i32, i32)| {
+                            if x >= 0 && x < 16 && y >= 0 && y < 16 {
+                                unsafe {
+                                    (*col_ptr).set_block(&Vec3::new(x, y, z), id);
+                                }
+                            } else {
+                                let to_place = ToPlaceAfter {
+                                    position: Vec3::new(pos.x * 16 + x, y, pos.y * 16 + z),
+                                    id,
+                                };
+                                unsafe {
+                                    (*set_world_after_list_ptr).push(to_place);
+                                }
+                            }
+                            Ok(())
+                        }).unwrap();
+                    globals.set("set_block", set_block).unwrap();
+
+                    let set_layers =
+                        scope.create_function(|_, (lower, upper, id): (u32, u32, i32)| {
+                            unsafe {
+                                (*col_ptr).set_layers(lower, upper, id);
+                            }
+                            Ok(())
+                        }).unwrap();
+                    globals.set("set_layers", set_layers).unwrap();
+
+                    lua_ctx
+                    .load(&self.column_script)
+                    .set_name("Generate Chunk Column").unwrap()
+                    .exec()
+                    .expect("Lua chunk generation script failed!");
+                });
+            });
         }
         
         // Insert new col into map
@@ -65,6 +178,10 @@ impl World {
         self.column_map.get_mut(&pos.x)
         .unwrap()
         .insert(pos.y, col);
+
+        for to_place in set_world_after_list.as_slice() {
+            self.set_block(&to_place.position, to_place.id);
+        }
     }
 
     /// Returns whether the column at `pos` exists
@@ -135,15 +252,14 @@ impl World {
 
         let chunk_position = World::world_to_chunk_position(position);
         let block_position_in_chunk = World::world_to_position_in_chunk(position);
-
-        if chunk_position.y >= 0 && chunk_position.y <= 15 && 
-            self.does_column_exist(&Vec2::new(chunk_position.x, chunk_position.z)) {
-            let column = self.get_column(&Vec2::new(chunk_position.x, chunk_position.z));
-            return column.get_chunk(chunk_position.y as u8)
-                .get_block(block_position_in_chunk.x as u8, block_position_in_chunk.y as u8, block_position_in_chunk.z as u8);
+        
+        let column = self.get_column(&Vec2::new(position.x, position.z));
+        if !(chunk_position.y >= 0 && chunk_position.y <= 15) {
+            return -1;
         }
 
-        -1
+        column.get_chunk(chunk_position.y as u8)
+            .get_block(block_position_in_chunk.x as u8, block_position_in_chunk.y as u8, block_position_in_chunk.z as u8)
     }
 
     /// Sets the block at `pos` to `id`

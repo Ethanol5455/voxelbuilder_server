@@ -45,7 +45,7 @@ fn run() {
 
     let save = SaveFile::load_save_file("/home/ethan/Games/voxelbuilder_server/saves/testSave".to_string());
 
-    let mut world = World::new(item_manager, save);
+    let mut world = World::new(item_manager, save, "./scripts/generateChunkColumn.lua".to_string());
 
     println!("Waiting...");
 
@@ -90,19 +90,17 @@ fn run() {
                     let block_pos = Vec3::<i32>::from_u8_arr(&data[1..13]);
                     let action_type = data[13];
 
-                    let existing_type = world.get_block(&block_pos);
+                    let existing_id = world.get_block(&block_pos);
                     if action_type == ChunkUpdateType::PlaceBlockEvent as u8 {
-                        if existing_type > 0 {
-                            println!("Block already exists at {},{},{}", block_pos.x, block_pos.y, block_pos.z);
-                        } else if existing_type < 0 {
-                            println!("Cannot place block at invalid position {},{},{}", block_pos.x, block_pos.y, block_pos.z);
+                        if existing_id > 0 {
+                            println!("Cannot place block over id {} @ {},{},{}", existing_id, block_pos.x, block_pos.y, block_pos.z);
                         } else {
                             let block_id = byteorder::LittleEndian::read_u32(&data[14..18]);
                             world.set_block(&block_pos, block_id as i32);
                         }
                     } else if action_type == ChunkUpdateType::DestroyBlockEvent as u8 {
-                        if existing_type == 0 {
-                            println!("Cannot destroy empty block at {},{},{}", block_pos.x, block_pos.y, block_pos.z);
+                        if existing_id < 1 {
+                            println!("Cannot destroy empty block id {} @ {},{},{}", existing_id, block_pos.x, block_pos.y, block_pos.z);
                         } else {
                             world.set_block(&block_pos, 0);
                         }
@@ -122,6 +120,6 @@ fn run() {
         }
     }
 
-    world.save_to_file();
+    // world.save_to_file();
 
 }
