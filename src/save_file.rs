@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::fs;
 use std::fs::File;
-use std::io::{Write, BufRead};
+use std::io::{BufRead, Write};
 
 use crate::player_data::Player;
 
@@ -38,7 +38,6 @@ impl SaveFile {
     }
 
     pub fn get_chunk(&self, position: Vec3<i32>) -> Option<&ChunkInfo> {
-
         for chunk in self.chunk_data.as_slice() {
             if chunk.position == position {
                 return Some(chunk);
@@ -49,7 +48,6 @@ impl SaveFile {
     }
 
     pub fn get_user_data(&mut self, username: &String) -> &mut Player {
-
         if self.players.contains_key(username) {
             return self.players.get_mut(username).unwrap();
         }
@@ -91,17 +89,23 @@ impl SaveFile {
 
         let dir_result = fs::create_dir_all(self.filepath.to_string() + "/players");
         if dir_result.is_err() {
-            println!("Unable to create save directory structure with error \"{}\"", dir_result.err().unwrap());
+            println!(
+                "Unable to create save directory structure with error \"{}\"",
+                dir_result.err().unwrap()
+            );
             return;
         }
 
-        
         // Player data
         for (username, player) in &self.players {
             let filepath = self.filepath.to_string() + "/players/" + username.as_str() + ".vbdat";
             let file = File::create(filepath);
             if file.is_err() {
-                println!("Unable to write save file for player \"{}\" with error \"{}\"", username, file.err().unwrap());
+                println!(
+                    "Unable to write save file for player \"{}\" with error \"{}\"",
+                    username,
+                    file.err().unwrap()
+                );
                 continue;
             }
             let mut file = file.unwrap();
@@ -110,43 +114,53 @@ impl SaveFile {
             file.write(name_string.as_bytes()).unwrap();
             // Player Position
             let pos_string = "PlayerPosition ".to_string()
-                 + &player.position.x.to_string()
-                 + " " + &player.position.y.to_string()
-                 + " " + &player.position.z.to_string()
-                 + "\n";
+                + &player.position.x.to_string()
+                + " "
+                + &player.position.y.to_string()
+                + " "
+                + &player.position.z.to_string()
+                + "\n";
             file.write(pos_string.as_bytes()).unwrap();
             // Player Rotation
             let rot_string = "PlayerRotation ".to_string()
-                 + &player.rotation.x.to_string()
-                 + " " + &player.rotation.y.to_string()
-                 + "\n";
+                + &player.rotation.x.to_string()
+                + " "
+                + &player.rotation.y.to_string()
+                + "\n";
             file.write(rot_string.as_bytes()).unwrap();
         }
-        
+
         // World data
         let file = File::create(self.filepath.to_string() + "/worldData.vbdat");
         if file.is_err() {
-            println!("Unable to create world save file with error \"{}\"", dir_result.err().unwrap());
+            println!(
+                "Unable to create world save file with error \"{}\"",
+                dir_result.err().unwrap()
+            );
             return;
         }
         let mut file = file.unwrap();
 
         // World seed
-        file.write(("Seed ".to_string() + &self.world_seed.to_string() + "\n").as_bytes()).unwrap();
+        file.write(("Seed ".to_string() + &self.world_seed.to_string() + "\n").as_bytes())
+            .unwrap();
 
         // Compressed chunk data
         for chunk in &self.chunk_data {
             // Chunk Position
             let pos_string = "C ".to_string()
-                 + &chunk.position.x.to_string()
-                 + " " + &chunk.position.y.to_string()
-                 + " " + &chunk.position.z.to_string()
-                 + " ";
+                + &chunk.position.x.to_string()
+                + " "
+                + &chunk.position.y.to_string()
+                + " "
+                + &chunk.position.z.to_string()
+                + " ";
             file.write(pos_string.as_bytes()).unwrap();
 
             // Compressed data
             for set in &chunk.data {
-                file.write((set.id.to_string() + " " + &set.count.to_string() + " ").as_bytes()).unwrap();
+                file.write((set.id.to_string() + " " + &set.count.to_string() + " ").as_bytes())
+                    .unwrap();
             }
 
             // End of chunk data
@@ -155,23 +169,36 @@ impl SaveFile {
 
         // Block to place
         for block in &self.block_to_place {
-            file.write((
-                "N ".to_string() + &block.column_position.x.to_string() + " " + &block.column_position.y.to_string()
-                + " " + &block.position_in_column.x.to_string() + " " + &block.position_in_column.y.to_string() + " " + &block.position_in_column.z.to_string()
-                + " " + &block.block_id.to_string() + "\n"
-            ).as_bytes()).unwrap();
+            file.write(
+                ("N ".to_string()
+                    + &block.column_position.x.to_string()
+                    + " "
+                    + &block.column_position.y.to_string()
+                    + " "
+                    + &block.position_in_column.x.to_string()
+                    + " "
+                    + &block.position_in_column.y.to_string()
+                    + " "
+                    + &block.position_in_column.z.to_string()
+                    + " "
+                    + &block.block_id.to_string()
+                    + "\n")
+                    .as_bytes(),
+            )
+            .unwrap();
         }
-
     }
 
     fn read_save(&mut self) {
-        
         // Load saved users
         let mut user_files = Vec::<String>::new();
 
         let dir_iter = fs::read_dir(self.filepath.to_string() + "/players");
         if dir_iter.is_err() {
-            println!("Unable to open find player save files with error \"{}\"", dir_iter.as_ref().err().unwrap());
+            println!(
+                "Unable to open find player save files with error \"{}\"",
+                dir_iter.as_ref().err().unwrap()
+            );
         } else {
             let dir_iter = dir_iter.unwrap();
             for e in dir_iter.into_iter() {
@@ -205,11 +232,13 @@ impl SaveFile {
             }
         }
 
-
         // Load world
         let file = File::open(self.filepath.to_string() + "/worldData.vbdat");
         if file.is_err() {
-            println!("Unable to load world save file with error \"{}\"", file.err().unwrap());
+            println!(
+                "Unable to load world save file with error \"{}\"",
+                file.err().unwrap()
+            );
             return;
         }
         let file = file.unwrap();
@@ -229,8 +258,8 @@ impl SaveFile {
                     let position = Vec3::<i32>::new(
                         x_pair.0.parse().unwrap(),
                         y_pair.0.parse().unwrap(),
-                        z_pair.0.parse().unwrap()
-                        );
+                        z_pair.0.parse().unwrap(),
+                    );
 
                     let mut data = ChunkInfo {
                         position,
@@ -242,8 +271,12 @@ impl SaveFile {
                         if compressed_data_str == "-111" {
                             break;
                         }
-                        let id_pair = compressed_data_str.split_at(compressed_data_str.find(' ').unwrap());
-                        let number_pair = id_pair.1.trim().split_at(id_pair.1.trim().find(' ').unwrap());
+                        let id_pair =
+                            compressed_data_str.split_at(compressed_data_str.find(' ').unwrap());
+                        let number_pair = id_pair
+                            .1
+                            .trim()
+                            .split_at(id_pair.1.trim().find(' ').unwrap());
                         compressed_data_str = number_pair.1.trim();
                         let compressed_set = CompressedSet {
                             id: id_pair.0.parse().unwrap(),
@@ -255,20 +288,32 @@ impl SaveFile {
                     self.chunk_data.push(data);
                 } else if key_val.0 == "N" {
                     let x_pos_pair = key_val.1.split_at(key_val.1.find(' ').unwrap());
-                    let y_pos_pair = x_pos_pair.1.trim().split_at(x_pos_pair.1.trim().find(' ').unwrap());
+                    let y_pos_pair = x_pos_pair
+                        .1
+                        .trim()
+                        .split_at(x_pos_pair.1.trim().find(' ').unwrap());
 
                     let column_position = Vec2::<i32>::new(
                         x_pos_pair.0.parse().unwrap(),
-                        y_pos_pair.0.parse().unwrap()
+                        y_pos_pair.0.parse().unwrap(),
                     );
 
-                    let x_pos_pair = y_pos_pair.1.trim().split_at(y_pos_pair.1.trim().find(' ').unwrap());
-                    let y_pos_pair = x_pos_pair.1.trim().split_at(x_pos_pair.1.trim().find(' ').unwrap());
-                    let z_pos_pair = y_pos_pair.1.trim().split_at(y_pos_pair.1.trim().find(' ').unwrap());
+                    let x_pos_pair = y_pos_pair
+                        .1
+                        .trim()
+                        .split_at(y_pos_pair.1.trim().find(' ').unwrap());
+                    let y_pos_pair = x_pos_pair
+                        .1
+                        .trim()
+                        .split_at(x_pos_pair.1.trim().find(' ').unwrap());
+                    let z_pos_pair = y_pos_pair
+                        .1
+                        .trim()
+                        .split_at(y_pos_pair.1.trim().find(' ').unwrap());
                     let position_in_column = Vec3::<i32>::new(
                         x_pos_pair.0.parse().unwrap(),
                         y_pos_pair.0.parse().unwrap(),
-                        z_pos_pair.0.parse().unwrap()
+                        z_pos_pair.0.parse().unwrap(),
                     );
 
                     let block_id = z_pos_pair.1.trim().parse::<i32>().unwrap();

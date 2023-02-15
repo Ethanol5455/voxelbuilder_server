@@ -4,16 +4,16 @@ pub enum PacketType {
     PlayerConnect,
     PlayerDisconnect,
     PlayerInfoRequest, // Get saved player data from file (if available)
-    PlayerInfoData, // Data about a player to save, sent at a fixed interval from the client
-    ChunkRequest, // Request from the client to send data about a chunk
-    ChunkUpdate, // Request from the client to update a chunk
-    ChunkContents // The contents of a chunk as requested by the client
-    // TODO: Add server message to client // Send a message from the server to the client
+    PlayerInfoData,    // Data about a player to save, sent at a fixed interval from the client
+    ChunkRequest,      // Request from the client to send data about a chunk
+    ChunkUpdate,       // Request from the client to update a chunk
+    ChunkContents,     // The contents of a chunk as requested by the client
+                       // TODO: Add server message to client // Send a message from the server to the client
 }
 
 pub enum ChunkUpdateType {
     PlaceBlockEvent,
-    DestroyBlockEvent
+    DestroyBlockEvent,
 }
 
 use crate::{player_data::Player, world::ChunkColumn};
@@ -53,7 +53,7 @@ pub fn assemble_chunk_contents_packet(col: &mut ChunkColumn) -> Vec<u8> {
         packet_data.append(&mut pos);
 
         let compressed_data = chunk.compress();
-        
+
         for set in compressed_data {
             byteorder::LittleEndian::write_i32(&mut buf, set.id); // set id
             packet_data.append(&mut buf.to_vec());

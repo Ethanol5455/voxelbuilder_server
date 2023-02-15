@@ -27,9 +27,7 @@ pub struct ItemManager {
 impl ItemManager {
     /// Creates an empty ItemManager
     pub fn new() -> ItemManager {
-        ItemManager {
-            items: Vec::new(),
-        }
+        ItemManager { items: Vec::new() }
     }
 
     /// Inserts a new item into the ItemManager
@@ -40,7 +38,8 @@ impl ItemManager {
     /// Gets item info from id
     pub fn get_item_by_id(&self, id: i32) -> Option<&ItemData> {
         if id < self.items.len() as i32 {
-            return Option::Some(self.items.get(id as usize).unwrap());        }
+            return Option::Some(self.items.get(id as usize).unwrap());
+        }
 
         Option::None
     }

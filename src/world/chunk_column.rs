@@ -1,4 +1,4 @@
-use crate::vector_types::{Vec3, Vec2};
+use crate::vector_types::{Vec2, Vec3};
 
 pub struct CompressedSet {
     pub id: i32,
@@ -24,7 +24,7 @@ impl Chunk {
     //     self.blocks = [id; 4096];
     // }
 
-    fn xyz_to_i(x: u8, y: u8, z: u8) -> u16{
+    fn xyz_to_i(x: u8, y: u8, z: u8) -> u16 {
         256 * z as u16 + 16 * y as u16 + x as u16
     }
 
@@ -40,7 +40,7 @@ impl Chunk {
 
     /// Gets the block at position `i`
     // pub fn get_block_i(&self, i: u16) -> i32 {
-        // self.blocks[i as usize]
+    // self.blocks[i as usize]
     // }
 
     /// Gets the block at position (`x`,`y`,`z`)
@@ -61,10 +61,7 @@ impl Chunk {
                 number += 1;
             } else {
                 if id != -1 {
-                    let new_set = CompressedSet {
-                        id,
-                        count: number
-                    };
+                    let new_set = CompressedSet { id, count: number };
                     set.push(new_set);
                 }
                 id = block;
@@ -72,10 +69,7 @@ impl Chunk {
             }
 
             if i == 4095 && id != -1 {
-                let new_set = CompressedSet {
-                    id,
-                    count: number
-                };
+                let new_set = CompressedSet { id, count: number };
                 set.push(new_set);
             }
         }
@@ -91,18 +85,17 @@ pub struct ChunkColumn {
 impl ChunkColumn {
     /// Creates a new ChunkColumn filled with `id` (16 chunks tall)
     pub fn new(position: &Vec2<i32>, id: i32) -> ChunkColumn {
-        let mut col = ChunkColumn {
-            chunks: Vec::new(),
-        };
+        let mut col = ChunkColumn { chunks: Vec::new() };
 
         for y in 0..16 {
-            col.chunks.push(Chunk::new(Vec3::new(position.x, y, position.y), id));
+            col.chunks
+                .push(Chunk::new(Vec3::new(position.x, y, position.y), id));
         }
 
         col
     }
 
-    pub fn get_chunks(&self) -> &Vec<Chunk>{
+    pub fn get_chunks(&self) -> &Vec<Chunk> {
         &self.chunks
     }
 
@@ -111,14 +104,27 @@ impl ChunkColumn {
     }
 
     pub fn set_block(&mut self, position: &Vec3<i32>, id: i32) {
-        self.chunks.get_mut((position.y / 16) as usize).unwrap().set_block(position.x as u8, (position.y % 16) as u8, position.z as u8, id);
+        self.chunks
+            .get_mut((position.y / 16) as usize)
+            .unwrap()
+            .set_block(
+                position.x as u8,
+                (position.y % 16) as u8,
+                position.z as u8,
+                id,
+            );
     }
 
     pub fn set_layers(&mut self, lower: u32, upper: u32, id: i32) {
         for y in lower..(upper + 1) {
             for x in 0..16 {
                 for z in 0..16 {
-                    self.chunks.get_mut((y / 16) as usize).unwrap().set_block(x, (y % 16) as u8, z, id);
+                    self.chunks.get_mut((y / 16) as usize).unwrap().set_block(
+                        x,
+                        (y % 16) as u8,
+                        z,
+                        id,
+                    );
                 }
             }
         }

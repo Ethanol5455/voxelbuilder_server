@@ -8,10 +8,7 @@ pub struct Vec2<T> {
 
 impl<T> Vec2<T> {
     pub fn new(x: T, y: T) -> Vec2<T> {
-        Vec2 {
-            x,
-            y,
-        }
+        Vec2 { x, y }
     }
 }
 
@@ -48,11 +45,7 @@ pub struct Vec3<T> {
 
 impl<T> Vec3<T> {
     pub fn new(x: T, y: T, z: T) -> Vec3<T> {
-        Vec3 {
-            x,
-            y,
-            z,
-        }
+        Vec3 { x, y, z }
     }
 }
 
@@ -61,7 +54,7 @@ impl Vec3<f32> {
         let mut vec = Vec::<u8>::new();
 
         let mut buf: [u8; 4] = [0; 4];
-        
+
         // x
         byteorder::LittleEndian::write_f32(&mut buf, self.x);
         vec.append(&mut buf.to_vec());
@@ -90,7 +83,7 @@ impl Vec3<i32> {
         let mut vec = Vec::<u8>::new();
 
         let mut buf: [u8; 4] = [0; 4];
-        
+
         // x
         byteorder::LittleEndian::write_i32(&mut buf, self.x);
         vec.append(&mut buf.to_vec());
