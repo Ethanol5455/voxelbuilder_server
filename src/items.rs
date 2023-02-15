@@ -11,7 +11,7 @@ pub enum ItemType {
 }
 
 pub struct ItemData {
-    pub item_type:     ItemType,
+    pub item_type: ItemType,
     pub is_transparent: bool,
     pub show_in_inventory: bool,
     pub name: String,
