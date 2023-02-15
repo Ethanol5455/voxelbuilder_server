@@ -69,19 +69,18 @@ impl World {
         let mut was_saved = true;
         
         // For each chunk in column
-        for height in 0..16 {
-            let chunk_data = self.save_file.get_chunk(Vec3::new(pos.x, height, pos.y));
-            match chunk_data {
+        for height in 0..16 as u8 {
+            let saved_chunk = self.save_file.get_chunk(Vec3::<i32>::new(pos.x, height as i32, pos.y));
+            match saved_chunk {
                 Some(chunk_data) => {
                     let chunk = col.get_chunk(height as u8);
                     let mut i = 0;
                     for set in chunk_data.data.as_slice() {
-                        for _ in 0..set.number {
+                        for _ in 0..set.count {
                             chunk.set_block_i(i, set.id);
                             i += 1;
                         }
                     }
-                    break
                 }
                 None => {
                     was_saved = false;

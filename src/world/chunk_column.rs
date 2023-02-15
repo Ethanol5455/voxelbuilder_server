@@ -2,7 +2,7 @@ use crate::vector_types::{Vec3, Vec2};
 
 pub struct CompressedSet {
     pub id: i32,
-    pub number: i32,
+    pub count: i32,
 }
 
 pub struct Chunk {
@@ -20,9 +20,9 @@ impl Chunk {
     }
 
     /// Fills the chunk with the given block id
-    pub fn fill(&mut self, id: i32) {
-        self.blocks = [id; 4096];
-    }
+    // pub fn fill(&mut self, id: i32) {
+    //     self.blocks = [id; 4096];
+    // }
 
     fn xyz_to_i(x: u8, y: u8, z: u8) -> u16{
         256 * z as u16 + 16 * y as u16 + x as u16
@@ -63,7 +63,7 @@ impl Chunk {
                 if id != -1 {
                     let new_set = CompressedSet {
                         id,
-                        number
+                        count: number
                     };
                     set.push(new_set);
                 }
@@ -74,7 +74,7 @@ impl Chunk {
             if i == 4095 && id != -1 {
                 let new_set = CompressedSet {
                     id,
-                    number
+                    count: number
                 };
                 set.push(new_set);
             }
@@ -148,16 +148,16 @@ mod tests {
         // All air
         let set = chunk.compress();
         assert_eq!(set.len(), 1);
-        assert_eq!(set[0].number, 4096);
+        assert_eq!(set[0].count, 4096);
         assert_eq!(set[0].id, 0);
 
         // Single block
         chunk.set_block_i(0, 1);
         let set = chunk.compress();
         assert_eq!(set.len(), 2);
-        assert_eq!(set[0].number, 1);
+        assert_eq!(set[0].count, 1);
         assert_eq!(set[0].id, 1);
-        assert_eq!(set[1].number, 4095);
+        assert_eq!(set[1].count, 4095);
         assert_eq!(set[1].id, 0);
 
         // Alternating double
@@ -170,7 +170,7 @@ mod tests {
         let set = chunk.compress();
         assert_eq!(set.len(), 2048);
         for i in 0..2048 {
-            assert_eq!(set[i].number, 2);
+            assert_eq!(set[i].count, 2);
             if i % 2 == 1 {
                 assert_eq!(set[i].id, 0);
             } else {
