@@ -69,19 +69,18 @@ impl World {
         let mut was_saved = true;
         
         // For each chunk in column
-        for height in 0..16 {
-            let chunk_data = self.save_file.get_chunk(Vec3::new(pos.x, height, pos.y));
-            match chunk_data {
+        for height in 0..16 as u8 {
+            let saved_chunk = self.save_file.get_chunk(Vec3::<i32>::new(pos.x, height as i32, pos.y));
+            match saved_chunk {
                 Some(chunk_data) => {
                     let chunk = col.get_chunk(height as u8);
                     let mut i = 0;
                     for set in chunk_data.data.as_slice() {
-                        for _ in 0..set.number {
+                        for _ in 0..set.count {
                             chunk.set_block_i(i, set.id);
                             i += 1;
                         }
                     }
-                    break
                 }
                 None => {
                     was_saved = false;
@@ -214,7 +213,7 @@ impl World {
     }
 
     /// Translates absolute world position to absolute chunk position
-    fn world_to_chunk_position(pos: &Vec3<i32>) -> Vec3<i32> {
+    pub fn world_to_chunk_position(pos: &Vec3<i32>) -> Vec3<i32> {
         let mut chunk_position = Vec3::new(pos.x / 16, pos.y / 16, pos.z / 16);
 
         if pos.x < 0 && -pos.x % 16 != 0 {
@@ -253,7 +252,7 @@ impl World {
         let chunk_position = World::world_to_chunk_position(position);
         let block_position_in_chunk = World::world_to_position_in_chunk(position);
         
-        let column = self.get_column(&Vec2::new(position.x, position.z));
+        let column = self.get_column(&Vec2::new(chunk_position.x, chunk_position.z));
         if !(chunk_position.y >= 0 && chunk_position.y <= 15) {
             return -1;
         }

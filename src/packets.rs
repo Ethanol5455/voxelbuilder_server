@@ -57,7 +57,7 @@ pub fn assemble_chunk_contents_packet(col: &mut ChunkColumn) -> Vec<u8> {
         for set in compressed_data {
             byteorder::LittleEndian::write_i32(&mut buf, set.id); // set id
             packet_data.append(&mut buf.to_vec());
-            byteorder::LittleEndian::write_i32(&mut buf, set.number); // set number
+            byteorder::LittleEndian::write_i32(&mut buf, set.count); // set number
             packet_data.append(&mut buf.to_vec());
         }
 

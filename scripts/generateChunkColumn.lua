@@ -50,7 +50,7 @@ do
 
         if(random() % tree_prob == 0)
         then
-            tree_height = math.random(tree_log_min_height, tree_log_max_height)
+            tree_height = random() % (tree_log_max_height - tree_log_min_height) + tree_log_min_height
             set_block(x, top_height + tree_height + 2, z, leaves_id)
             for xt = -2, 2, 1
             do

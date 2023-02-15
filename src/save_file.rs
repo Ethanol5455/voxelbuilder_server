@@ -9,7 +9,7 @@ use crate::vector_types::{Vec2, Vec3};
 use crate::world::chunk_column::CompressedSet;
 use crate::world::{BlockToPlace, Chunk};
 
-pub struct ChunkData {
+pub struct ChunkInfo {
     pub position: Vec3<i32>,
     pub data: Vec<CompressedSet>,
 }
@@ -17,7 +17,7 @@ pub struct ChunkData {
 pub struct SaveFile {
     pub filepath: String,
     pub world_seed: i32,
-    chunk_data: Vec<ChunkData>,
+    chunk_data: Vec<ChunkInfo>,
     block_to_place: Vec<BlockToPlace>,
     players: HashMap<String, Player>,
 }
@@ -27,7 +27,7 @@ impl SaveFile {
         let mut save = SaveFile {
             filepath: path,
             world_seed: rand::random(),
-            chunk_data: Vec::<ChunkData>::new(),
+            chunk_data: Vec::<ChunkInfo>::new(),
             block_to_place: Vec::<BlockToPlace>::new(),
             players: HashMap::new(),
         };
@@ -37,7 +37,7 @@ impl SaveFile {
         save
     }
 
-    pub fn get_chunk(&self, position: Vec3<i32>) -> Option<&ChunkData> {
+    pub fn get_chunk(&self, position: Vec3<i32>) -> Option<&ChunkInfo> {
 
         for chunk in self.chunk_data.as_slice() {
             if chunk.position == position {
@@ -65,7 +65,7 @@ impl SaveFile {
     }
 
     pub fn save_chunk_data(&mut self, chunk: &Chunk) {
-        let data = ChunkData {
+        let data = ChunkInfo {
             position: chunk.position,
             data: chunk.compress(),
         };
@@ -146,7 +146,7 @@ impl SaveFile {
 
             // Compressed data
             for set in &chunk.data {
-                file.write((set.id.to_string() + " " + &set.number.to_string() + " ").as_bytes()).unwrap();
+                file.write((set.id.to_string() + " " + &set.count.to_string() + " ").as_bytes()).unwrap();
             }
 
             // End of chunk data
@@ -232,7 +232,7 @@ impl SaveFile {
                         z_pair.0.parse().unwrap()
                         );
 
-                    let mut data = ChunkData {
+                    let mut data = ChunkInfo {
                         position,
                         data: Vec::new(),
                     };
@@ -247,7 +247,7 @@ impl SaveFile {
                         compressed_data_str = number_pair.1.trim();
                         let compressed_set = CompressedSet {
                             id: id_pair.0.parse().unwrap(),
-                            number: number_pair.0.parse().unwrap(),
+                            count: number_pair.0.parse().unwrap(),
                         };
                         data.data.push(compressed_set);
                     }

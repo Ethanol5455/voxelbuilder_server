@@ -43,7 +43,7 @@ fn run() {
     let mut item_manager = items::ItemManager::new();
     item_manager.load_items("./scripts/loadAssetInfo.lua".to_string());
 
-    let save = SaveFile::load_save_file("/home/ethan/Games/voxelbuilder_server/saves/testSave".to_string());
+    let save = SaveFile::load_save_file("./world".to_string());
 
     let mut world = World::new(item_manager, save, "./scripts/generateChunkColumn.lua".to_string());
 
@@ -120,6 +120,6 @@ fn run() {
         }
     }
 
-    // world.save_to_file();
+    world.save_to_file();
 
 }
