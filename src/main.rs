@@ -11,6 +11,8 @@ use save_file::SaveFile;
 use enet::*;
 use std::net::Ipv4Addr;
 use std::path::Path;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::{fs, str};
 
 mod packets;
@@ -90,7 +92,10 @@ fn run() {
 
     println!("Waiting for player...");
 
-    loop {
+    let term = Arc::new(AtomicBool::new(false));
+    signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&term)).unwrap();
+
+    while !term.load(Ordering::Relaxed) {
         match server.service(1000).unwrap() {
             Some(Event::Connect(_)) => println!("Connected!"),
             Some(Event::Disconnect(..)) => {
