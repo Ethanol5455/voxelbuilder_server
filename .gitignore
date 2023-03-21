@@ -6,4 +6,4 @@
 **/*.rs.bk
 
 # Project generated files
-/world/
+/save/

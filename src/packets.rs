@@ -9,6 +9,7 @@ pub enum PacketType {
     ChunkUpdate,       // Request from the client to update a chunk
     ChunkContents,     // The contents of a chunk as requested by the client
                        // TODO: Add server message to client // Send a message from the server to the client
+                       // TODO: Add client command to server // Send a command from the client to the server
 }
 
 pub enum ChunkUpdateType {
