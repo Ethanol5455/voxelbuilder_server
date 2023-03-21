@@ -90,7 +90,7 @@ impl SaveFile {
         let dir_result = fs::create_dir_all(self.filepath.to_string() + "/players");
         if dir_result.is_err() {
             println!(
-                "Unable to create save directory structure with error \"{}\"",
+                "Unable to create save directory structure with error \"{}\".",
                 dir_result.err().unwrap()
             );
             return;
@@ -196,7 +196,7 @@ impl SaveFile {
         let dir_iter = fs::read_dir(self.filepath.to_string() + "/players");
         if dir_iter.is_err() {
             println!(
-                "Unable to open find player save files with error \"{}\"",
+                "Unable to open player save files with error \"{}\". The save may not be generated yet...",
                 dir_iter.as_ref().err().unwrap()
             );
         } else {
@@ -236,7 +236,7 @@ impl SaveFile {
         let file = File::open(self.filepath.to_string() + "/worldData.vbdat");
         if file.is_err() {
             println!(
-                "Unable to load world save file with error \"{}\"",
+                "Unable to load world save file with error \"{}\". The save may not be generated yet...",
                 file.err().unwrap()
             );
             return;
