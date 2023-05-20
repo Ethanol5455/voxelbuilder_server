@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 enet = "0.3.0"
+enet-sys = "1.0.3"
 rlua = "0.19.4"
 byteorder = "1.4.3"
 rand = "0.8.5"
