@@ -1,7 +1,12 @@
 use std::collections::HashMap;
-use std::fs;
+use std::error::Error;
 use std::fs::File;
-use std::io::{BufRead, Write};
+use std::io::{BufRead, BufReader, Write};
+use std::os::unix::prelude::OsStrExt;
+use std::path::Path;
+use std::{fs, io};
+
+use unwrap_or::unwrap_ok_or;
 
 use crate::player_data::Player;
 
@@ -9,13 +14,20 @@ use crate::vector_types::{Vec2, Vec3};
 use crate::world::chunk_column::CompressedSet;
 use crate::world::{BlockToPlace, Chunk};
 
+const DEFAULT_SCRIPT_SUBDIRECTORY: &str = "/default_scripts";
+const SAVE_FILE_NAME: &str = "worldData";
+const SAVE_FILE_EXTENSION: &str = "vbdat";
+const PLAYER_SAVE_SUBDIRECTORY: &str = "/players";
+const SCRIPT_SAVE_SUBDIRECTORY: &str = "/scripts";
+
 pub struct ChunkInfo {
     pub position: Vec3<i32>,
     pub data: Vec<CompressedSet>,
 }
 
 pub struct SaveFile {
-    pub filepath: String,
+    // save_directory does not contain trailing slashes, if None do not save
+    pub save_directory: Option<String>,
     pub world_seed: i32,
     chunk_data: Vec<ChunkInfo>,
     block_to_place: Vec<BlockToPlace>,
@@ -23,18 +35,61 @@ pub struct SaveFile {
 }
 
 impl SaveFile {
-    pub fn load_save_file(path: String) -> SaveFile {
-        let mut save = SaveFile {
-            filepath: path,
+    pub fn new(directory: Option<String>) -> SaveFile {
+        match directory.clone() {
+            Some(dir) => {
+                assert!(!dir.is_empty(), "Empty save directory entered!");
+                assert!(
+                    !dir.contains('\\'),
+                    "Save directory may not contain \\ characters"
+                );
+                assert!(
+                    !dir.ends_with('/'),
+                    "Save directory may not end with / character"
+                );
+                unwrap_ok_or!(SaveFile::generate_save_structure(dir), e, {
+                    panic!("Unable to generate save directory structure: {}", e)
+                });
+            }
+            None => (),
+        }
+
+        SaveFile {
+            save_directory: directory,
             world_seed: rand::random(),
             chunk_data: Vec::<ChunkInfo>::new(),
             block_to_place: Vec::<BlockToPlace>::new(),
             players: HashMap::new(),
-        };
+        }
+    }
 
-        save.read_save();
+    fn generate_save_structure(directory: String) -> io::Result<()> {
+        fs::create_dir_all(format!("{}{}", directory, SCRIPT_SAVE_SUBDIRECTORY))?;
+        fs::create_dir_all(format!("{}{}", directory, PLAYER_SAVE_SUBDIRECTORY))?;
 
-        save
+        let script_files = ["loadAssetInfo.lua", "generateChunkColumn.lua"];
+
+        for script_file in script_files {
+            let to_path_str = format!("{}{}/{}", directory, SCRIPT_SAVE_SUBDIRECTORY, script_file);
+            if !Path::new(&to_path_str).exists() {
+                fs::copy(
+                    format!(".{}/{}", DEFAULT_SCRIPT_SUBDIRECTORY, script_file),
+                    to_path_str,
+                )?;
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn get_script_path(&self, script_name: String) -> String {
+        match self.save_directory.clone() {
+            Some(directory) => format!(
+                "{}{}/{}.lua",
+                directory, SCRIPT_SAVE_SUBDIRECTORY, script_name
+            ),
+            None => format!(".{}/{}.lua", DEFAULT_SCRIPT_SUBDIRECTORY, script_name),
+        }
     }
 
     pub fn get_chunk(&self, position: Vec3<i32>) -> Option<&ChunkInfo> {
@@ -83,32 +138,28 @@ impl SaveFile {
     }
 
     pub fn write_save(&self) {
-        if self.filepath == "" {
-            println!("Save path not provided, file will not be written");
-        }
-
-        let dir_result = fs::create_dir_all(self.filepath.to_string() + "/players");
-        if dir_result.is_err() {
-            println!(
-                "Unable to create save directory structure with error \"{}\".",
-                dir_result.err().unwrap()
-            );
+        if self.save_directory.is_none() {
+            eprintln!("Save directory not provided, save will not be written");
             return;
         }
+        let directory_str = self.save_directory.clone().unwrap();
 
         // Player data
         for (username, player) in &self.players {
-            let filepath = self.filepath.to_string() + "/players/" + username.as_str() + ".vbdat";
-            let file = File::create(filepath);
-            if file.is_err() {
-                println!(
-                    "Unable to write save file for player \"{}\" with error \"{}\"",
-                    username,
-                    file.err().unwrap()
-                );
-                continue;
-            }
-            let mut file = file.unwrap();
+            let mut file = unwrap_ok_or!(
+                File::create(format!(
+                    "{}{}/{}.{}",
+                    directory_str, PLAYER_SAVE_SUBDIRECTORY, username, SAVE_FILE_EXTENSION
+                )),
+                e,
+                {
+                    eprintln!(
+                        "Unable to write save file for player \"{}\" with error \"{}\"",
+                        username, e
+                    );
+                    continue;
+                }
+            );
             // Player Name
             let name_string = "PlayerName ".to_string() + username + "\n";
             file.write(name_string.as_bytes()).unwrap();
@@ -131,11 +182,14 @@ impl SaveFile {
         }
 
         // World data
-        let file = File::create(self.filepath.to_string() + "/worldData.vbdat");
+        let file = File::create(format!(
+            "{}/{}.{}",
+            directory_str, SAVE_FILE_NAME, SAVE_FILE_EXTENSION
+        ));
         if file.is_err() {
             println!(
                 "Unable to create world save file with error \"{}\"",
-                dir_result.err().unwrap()
+                file.err().unwrap()
             );
             return;
         }
@@ -189,57 +243,66 @@ impl SaveFile {
         }
     }
 
-    fn read_save(&mut self) {
+    pub fn load(&mut self) -> io::Result<()> {
         // Load saved users
-        let mut user_files = Vec::<String>::new();
+        assert!(self.save_directory.is_some(), "Cannot load temporary save!");
+        let directory_str = self.save_directory.clone().unwrap();
 
-        let dir_iter = fs::read_dir(self.filepath.to_string() + "/players");
-        if dir_iter.is_err() {
-            println!(
-                "Unable to open player save files with error \"{}\". The save may not be generated yet...",
-                dir_iter.as_ref().err().unwrap()
-            );
-        } else {
-            let dir_iter = dir_iter.unwrap();
-            for e in dir_iter.into_iter() {
-                user_files.push(String::from(e.unwrap().file_name().to_str().unwrap()));
-            }
-        }
-
-        for user in user_files {
-            let file = File::open(self.filepath.to_string() + "/players/" + &user).unwrap();
-            let lines = std::io::BufReader::new(file).lines();
-            let username = user.split_at(user.find('.').unwrap()).0.to_string();
-            let mut user = self.get_user_data(&username);
-            for line in lines {
-                if let Ok(line) = line {
-                    let mut values = line.split_at(line.find(' ').unwrap());
-                    values.1 = values.1.trim();
-                    if values.0 == "PlayerName" {
-                        user.username = String::clone(&username);
-                    } else if values.0 == "PlayerPosition" {
-                        let x_pair = values.1.split_at(values.1.find(' ').unwrap());
-                        let y_pair = x_pair.1.trim().split_at(x_pair.1.trim().find(' ').unwrap());
-                        user.position.x = x_pair.0.parse().unwrap();
-                        user.position.y = y_pair.0.parse().unwrap();
-                        user.position.z = y_pair.1.trim().parse().unwrap();
-                    } else if values.0 == "PlayerRotation" {
-                        let x_pair = values.1.split_at(values.1.find(' ').unwrap());
-                        user.rotation.x = x_pair.0.parse().unwrap();
-                        user.rotation.y = x_pair.1.trim().parse().unwrap();
+        match fs::read_dir(format!("{}{}", directory_str, PLAYER_SAVE_SUBDIRECTORY)) {
+            Ok(contents) => {
+                for entry in contents {
+                    let lines = BufReader::new(File::open(entry?.path()).unwrap()).lines();
+                    // self.get_user_data(username);
+                    let mut player = None;
+                    for line in lines {
+                        if let Ok(line) = line {
+                            let (key, value) = line.split_at(line.find(' ').unwrap());
+                            let value = value.trim();
+                            match key {
+                                "PlayerName" => {
+                                    player = Some(self.get_user_data(&value.to_string()))
+                                }
+                                "PlayerPosition" => {
+                                    let coords: Vec<&str> =
+                                        value.split_ascii_whitespace().collect();
+                                    player.as_mut().unwrap().position = Vec3::new(
+                                        coords[0].parse().unwrap(),
+                                        coords[1].parse().unwrap(),
+                                        coords[2].parse().unwrap(),
+                                    );
+                                }
+                                "PlayerRotation" => {
+                                    let coords: Vec<&str> =
+                                        value.split_ascii_whitespace().collect();
+                                    player.as_mut().unwrap().rotation = Vec2::new(
+                                        coords[0].parse().unwrap(),
+                                        coords[1].parse().unwrap(),
+                                    );
+                                }
+                                _ => {
+                                    assert!(
+                                        player.is_some(),
+                                        "PlayerName must be the first line in player save file!"
+                                    );
+                                    eprintln!("Unknown player save file key \"{}\"", key);
+                                }
+                            }
+                        }
                     }
                 }
             }
+            Err(e) => eprintln!("Unable to open player save files with error \"{}\".", e),
         }
 
         // Load world
-        let file = File::open(self.filepath.to_string() + "/worldData.vbdat");
+        let file = File::open(directory_str + "/" + SAVE_FILE_NAME + "." + SAVE_FILE_EXTENSION);
         if file.is_err() {
             println!(
                 "Unable to load world save file with error \"{}\". The save may not be generated yet...",
                 file.err().unwrap()
             );
-            return;
+            // return;
+            panic!();
         }
         let file = file.unwrap();
 
@@ -328,5 +391,7 @@ impl SaveFile {
                 }
             }
         }
+
+        Ok(())
     }
 }

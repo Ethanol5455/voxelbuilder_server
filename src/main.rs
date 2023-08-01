@@ -44,51 +44,18 @@ fn run() {
         )
         .unwrap();
 
-    let res = fs::create_dir_all("./save/scripts");
-    if res.is_err() {
-        println!(
-            "Unable to create script save directory structure with error \"{}\".",
-            res.err().unwrap()
-        );
-        return;
-    }
+    let save_directory = "./save";
+    let mut save = SaveFile::new(Some(save_directory.to_owned()));
+    // let mut save = SaveFile::new(None);
+    save.load();
 
-    if !Path::new("./save/scripts/loadAssetInfo.lua").exists() {
-        let res = fs::copy(
-            "./default_scripts/loadAssetInfo.lua",
-            "./save/scripts/loadAssetInfo.lua",
-        );
-        if res.is_err() {
-            println!(
-                "Unable to copy default script loadAssetInfo with error \"{}\".",
-                res.err().unwrap()
-            );
-            return;
-        }
-    }
     let mut item_manager = items::ItemManager::new();
-    item_manager.load_items("./save/scripts/loadAssetInfo.lua".to_string());
+    item_manager.load_items(save.get_script_path("loadAssetInfo".to_string()));
 
-    let save = SaveFile::load_save_file("./save".to_string());
+    // panic!("Dead");
+    // let save = SaveFile::load_save("./save".to_string());
 
-    if !Path::new("./save/scripts/generateChunkColumn.lua").exists() {
-        let res = fs::copy(
-            "./default_scripts/generateChunkColumn.lua",
-            "./save/scripts/generateChunkColumn.lua",
-        );
-        if res.is_err() {
-            println!(
-                "Unable to copy default script generateChunkColumn with error \"{}\".",
-                res.err().unwrap()
-            );
-            return;
-        }
-    }
-    let mut world = World::new(
-        item_manager,
-        save,
-        "./save/scripts/generateChunkColumn.lua".to_string(),
-    );
+    let mut world = World::new(item_manager, save);
 
     println!("Waiting for player...");
 

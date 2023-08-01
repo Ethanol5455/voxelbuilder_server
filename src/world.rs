@@ -28,12 +28,8 @@ pub struct World {
 
 impl World {
     /// Creates a new world with no chunks
-    pub fn new(
-        item_manager: ItemManager,
-        save_file: SaveFile,
-        column_script_path: String,
-    ) -> World {
-        let seed = save_file.world_seed;
+    pub fn new(item_manager: ItemManager, save: SaveFile) -> World {
+        let seed = save.world_seed;
         let mut noise_functions = HashMap::new();
 
         let mut noise = FastNoiseLite::new(seed);
@@ -55,8 +51,10 @@ impl World {
         noise.set_noise_type(NoiseType::Value);
         noise_functions.insert("Value".to_string(), noise);
 
+        let column_script_path = save.get_script_path("generateChunkColumn".to_string());
+
         World {
-            save_file,
+            save_file: save,
             column_map: BTreeMap::new(),
             item_manager,
             lua: Lua::new(),
@@ -310,7 +308,7 @@ impl World {
     }
 
     pub fn save_to_file(&mut self) {
-        if self.save_file.filepath == "" {
+        if self.save_file.save_directory.is_none() {
             return;
         }
 
