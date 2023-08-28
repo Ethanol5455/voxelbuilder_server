@@ -45,7 +45,9 @@ fn run() {
 
     let save_directory = "./save";
     let mut save = SaveFile::new(Some(save_directory.to_owned()));
-    save.load().unwrap();
+    if save.load().is_err() {
+        eprintln!("Save file could not be loaded with error \"{}\". The save file may not be generated yet!", save.load().unwrap_err());
+    }
 
     let mut item_manager = items::ItemManager::new();
     item_manager.load_items(save.get_script_path("loadAssetInfo".to_string()));
