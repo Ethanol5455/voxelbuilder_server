@@ -67,7 +67,6 @@ impl ItemManager {
 
                 let add_asset = // Create a function that takes in all info and compiles it into a ItemData struct
                     scope.create_function_mut(|_, (item_name, item_type_str, is_transparent, show_in_inventory, coords): (String, String, bool, bool, Vec<u16>)| {
-                        // println!("New Asset: {}, {}, {}, {}", item_name, item_type_str, is_transparent, show_in_inventory);
 
                         let item_type: ItemType;
                         match item_type_str.as_str() {
@@ -150,10 +149,6 @@ impl ItemManager {
                 .expect("Lua asset script failed!");
 
             });
-
-            // let lua_load_asset_info: Function = globals.get("loadAssetInfo").expect("No function loaded!");
-
-            // lua_load_asset_info.call::<_, ()>(()).expect("loadAssetInfo function call failed!");
         })
     }
 }

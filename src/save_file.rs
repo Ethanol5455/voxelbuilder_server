@@ -1,12 +1,8 @@
 use std::collections::HashMap;
-use std::error::Error;
 use std::fs::File;
-use std::io::{BufRead, BufReader, Write};
-use std::os::unix::prelude::OsStrExt;
+use std::io::{BufReader, Read, Write};
 use std::path::Path;
 use std::{fs, io};
-
-use unwrap_or::unwrap_ok_or;
 
 use crate::player_data::Player;
 
@@ -47,9 +43,10 @@ impl SaveFile {
                     !dir.ends_with('/'),
                     "Save directory may not end with / character"
                 );
-                unwrap_ok_or!(SaveFile::generate_save_structure(dir), e, {
-                    panic!("Unable to generate save directory structure: {}", e)
-                });
+                match SaveFile::generate_save_structure(dir) {
+                    Ok(_) => (),
+                    Err(e) => panic!("Unable to generate save directory structure: {}", e),
+                }
             }
             None => (),
         }
@@ -137,110 +134,66 @@ impl SaveFile {
         self.chunk_data.push(data)
     }
 
-    pub fn write_save(&self) {
+    pub fn write_save(&self) -> io::Result<()> {
         if self.save_directory.is_none() {
             eprintln!("Save directory not provided, save will not be written");
-            return;
+            return Err(std::io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "No save directory given!",
+            ));
         }
         let directory_str = self.save_directory.clone().unwrap();
 
         // Player data
         for (username, player) in &self.players {
-            let mut file = unwrap_ok_or!(
-                File::create(format!(
-                    "{}{}/{}.{}",
-                    directory_str, PLAYER_SAVE_SUBDIRECTORY, username, SAVE_FILE_EXTENSION
-                )),
-                e,
-                {
+            let mut file = match File::create(format!(
+                "{}{}/{}.{}",
+                directory_str, PLAYER_SAVE_SUBDIRECTORY, username, SAVE_FILE_EXTENSION
+            )) {
+                Ok(file) => file,
+                Err(e) => {
                     eprintln!(
                         "Unable to write save file for player \"{}\" with error \"{}\"",
                         username, e
                     );
                     continue;
                 }
-            );
-            // Player Name
-            let name_string = "PlayerName ".to_string() + username + "\n";
-            file.write(name_string.as_bytes()).unwrap();
-            // Player Position
-            let pos_string = "PlayerPosition ".to_string()
-                + &player.position.x.to_string()
-                + " "
-                + &player.position.y.to_string()
-                + " "
-                + &player.position.z.to_string()
-                + "\n";
-            file.write(pos_string.as_bytes()).unwrap();
-            // Player Rotation
-            let rot_string = "PlayerRotation ".to_string()
-                + &player.rotation.x.to_string()
-                + " "
-                + &player.rotation.y.to_string()
-                + "\n";
-            file.write(rot_string.as_bytes()).unwrap();
+            };
+            let binary_player = bincode::serialize(&player).unwrap();
+            file.write(&binary_player).unwrap();
         }
 
         // World data
-        let file = File::create(format!(
+        let mut file = match File::create(format!(
             "{}/{}.{}",
             directory_str, SAVE_FILE_NAME, SAVE_FILE_EXTENSION
-        ));
-        if file.is_err() {
-            println!(
-                "Unable to create world save file with error \"{}\"",
-                file.err().unwrap()
-            );
-            return;
-        }
-        let mut file = file.unwrap();
+        )) {
+            Ok(file) => file,
+            Err(e) => return Err(e),
+        };
 
         // World seed
-        file.write(("Seed ".to_string() + &self.world_seed.to_string() + "\n").as_bytes())
+        file.write(&bincode::serialize(&self.world_seed).unwrap())
             .unwrap();
 
         // Compressed chunk data
         for chunk in &self.chunk_data {
+            file.write(&[b'C'])?;
             // Chunk Position
-            let pos_string = "C ".to_string()
-                + &chunk.position.x.to_string()
-                + " "
-                + &chunk.position.y.to_string()
-                + " "
-                + &chunk.position.z.to_string()
-                + " ";
-            file.write(pos_string.as_bytes()).unwrap();
-
-            // Compressed data
+            file.write(&bincode::serialize(&chunk.position).unwrap())?;
+            file.write(&bincode::serialize(&(chunk.data.len() as u32)).unwrap())?;
             for set in &chunk.data {
-                file.write((set.id.to_string() + " " + &set.count.to_string() + " ").as_bytes())
-                    .unwrap();
+                file.write(&bincode::serialize(&set).unwrap())?;
             }
-
-            // End of chunk data
-            file.write("-111\n".as_bytes()).unwrap();
         }
 
-        // Block to place
+        // Blocks to place
         for block in &self.block_to_place {
-            file.write(
-                ("N ".to_string()
-                    + &block.column_position.x.to_string()
-                    + " "
-                    + &block.column_position.y.to_string()
-                    + " "
-                    + &block.position_in_column.x.to_string()
-                    + " "
-                    + &block.position_in_column.y.to_string()
-                    + " "
-                    + &block.position_in_column.z.to_string()
-                    + " "
-                    + &block.block_id.to_string()
-                    + "\n")
-                    .as_bytes(),
-            )
-            .unwrap();
+            file.write(&[b'N'])?;
+            file.write(&bincode::serialize(&block).unwrap())?;
         }
+
+        Ok(())
     }
 
     pub fn load(&mut self) -> io::Result<()> {
@@ -251,146 +204,82 @@ impl SaveFile {
         match fs::read_dir(format!("{}{}", directory_str, PLAYER_SAVE_SUBDIRECTORY)) {
             Ok(contents) => {
                 for entry in contents {
-                    let lines = BufReader::new(File::open(entry?.path()).unwrap()).lines();
-                    // self.get_user_data(username);
-                    let mut player = None;
-                    for line in lines {
-                        if let Ok(line) = line {
-                            let (key, value) = line.split_at(line.find(' ').unwrap());
-                            let value = value.trim();
-                            match key {
-                                "PlayerName" => {
-                                    player = Some(self.get_user_data(&value.to_string()))
-                                }
-                                "PlayerPosition" => {
-                                    let coords: Vec<&str> =
-                                        value.split_ascii_whitespace().collect();
-                                    player.as_mut().unwrap().position = Vec3::new(
-                                        coords[0].parse().unwrap(),
-                                        coords[1].parse().unwrap(),
-                                        coords[2].parse().unwrap(),
-                                    );
-                                }
-                                "PlayerRotation" => {
-                                    let coords: Vec<&str> =
-                                        value.split_ascii_whitespace().collect();
-                                    player.as_mut().unwrap().rotation = Vec2::new(
-                                        coords[0].parse().unwrap(),
-                                        coords[1].parse().unwrap(),
-                                    );
-                                }
-                                _ => {
-                                    assert!(
-                                        player.is_some(),
-                                        "PlayerName must be the first line in player save file!"
-                                    );
-                                    eprintln!("Unknown player save file key \"{}\"", key);
-                                }
-                            }
+                    let path = entry?.path();
+                    let mut in_file = match File::open(path.clone()) {
+                        Ok(file) => file,
+                        Err(e) => {
+                            eprintln!(
+                                "Unable to write save file \"{:?}\" with error \"{}\"",
+                                path, e
+                            );
+                            continue;
                         }
-                    }
+                    };
+
+                    let metadata = fs::metadata(&path).expect("unable to read metadata");
+                    let mut buffer = vec![0; metadata.len() as usize];
+                    in_file.read(&mut buffer).expect("buffer overflow");
+
+                    let new_player: Player = bincode::deserialize(&buffer).unwrap();
+                    self.players.insert(new_player.username.clone(), new_player);
                 }
             }
             Err(e) => eprintln!("Unable to open player save files with error \"{}\".", e),
         }
 
         // Load world
-        let file = File::open(directory_str + "/" + SAVE_FILE_NAME + "." + SAVE_FILE_EXTENSION);
-        if file.is_err() {
-            println!(
-                "Unable to load world save file with error \"{}\". The save may not be generated yet...",
-                file.err().unwrap()
-            );
-            // return;
-            panic!();
-        }
-        let file = file.unwrap();
+        let file = match File::open(format!(
+            "{}/{}.{}",
+            directory_str, SAVE_FILE_NAME, SAVE_FILE_EXTENSION
+        )) {
+            Ok(file) => file,
+            Err(e) => return Err(e),
+        };
 
-        let lines = std::io::BufReader::new(file).lines();
-        for line in lines {
-            if let Ok(line) = line {
-                let mut key_val = line.split_at(line.find(' ').unwrap());
-                key_val.1 = key_val.1.trim();
+        let mut reader = BufReader::new(file);
 
-                if key_val.0 == "Seed" {
-                    self.world_seed = key_val.1.parse().unwrap();
-                } else if key_val.0 == "C" {
-                    let x_pair = key_val.1.split_at(key_val.1.find(' ').unwrap());
-                    let y_pair = x_pair.1.trim().split_at(x_pair.1.trim().find(' ').unwrap());
-                    let z_pair = y_pair.1.trim().split_at(y_pair.1.trim().find(' ').unwrap());
-                    let position = Vec3::<i32>::new(
-                        x_pair.0.parse().unwrap(),
-                        y_pair.0.parse().unwrap(),
-                        z_pair.0.parse().unwrap(),
-                    );
+        let mut buffer: [u8; 4] = [0; 4];
+        reader.read_exact(&mut buffer)?;
+        self.world_seed = bincode::deserialize(&buffer).unwrap();
 
-                    let mut data = ChunkInfo {
-                        position,
-                        data: Vec::new(),
-                    };
+        loop {
+            let mut buffer: [u8; 1] = [0; 1];
+            if reader.read(&mut buffer)? == 0 {
+                break;
+            }
+            if buffer[0] == b'C' {
+                let mut buffer: [u8; 12 + 4] = [0; 12 + 4];
+                reader.read_exact(&mut buffer)?;
 
-                    let mut compressed_data_str = z_pair.1.trim();
-                    loop {
-                        if compressed_data_str == "-111" {
-                            break;
-                        }
-                        let id_pair =
-                            compressed_data_str.split_at(compressed_data_str.find(' ').unwrap());
-                        let number_pair = id_pair
-                            .1
-                            .trim()
-                            .split_at(id_pair.1.trim().find(' ').unwrap());
-                        compressed_data_str = number_pair.1.trim();
-                        let compressed_set = CompressedSet {
-                            id: id_pair.0.parse().unwrap(),
-                            count: number_pair.0.parse().unwrap(),
-                        };
-                        data.data.push(compressed_set);
-                    }
+                let position: Vec3<i32> = bincode::deserialize(&buffer[..12]).unwrap();
+                let mut new_chunk = ChunkInfo {
+                    position: position,
+                    data: Vec::new(),
+                };
 
-                    self.chunk_data.push(data);
-                } else if key_val.0 == "N" {
-                    let x_pos_pair = key_val.1.split_at(key_val.1.find(' ').unwrap());
-                    let y_pos_pair = x_pos_pair
-                        .1
-                        .trim()
-                        .split_at(x_pos_pair.1.trim().find(' ').unwrap());
+                let num_sets: u32 = bincode::deserialize(&buffer[12..]).unwrap();
+                new_chunk.data.reserve(num_sets as usize);
 
-                    let column_position = Vec2::<i32>::new(
-                        x_pos_pair.0.parse().unwrap(),
-                        y_pos_pair.0.parse().unwrap(),
-                    );
+                for _ in 0..num_sets {
+                    let mut buffer: [u8; 8] = [0; 8];
+                    reader.read_exact(&mut buffer)?;
 
-                    let x_pos_pair = y_pos_pair
-                        .1
-                        .trim()
-                        .split_at(y_pos_pair.1.trim().find(' ').unwrap());
-                    let y_pos_pair = x_pos_pair
-                        .1
-                        .trim()
-                        .split_at(x_pos_pair.1.trim().find(' ').unwrap());
-                    let z_pos_pair = y_pos_pair
-                        .1
-                        .trim()
-                        .split_at(y_pos_pair.1.trim().find(' ').unwrap());
-                    let position_in_column = Vec3::<i32>::new(
-                        x_pos_pair.0.parse().unwrap(),
-                        y_pos_pair.0.parse().unwrap(),
-                        z_pos_pair.0.parse().unwrap(),
-                    );
-
-                    let block_id = z_pos_pair.1.trim().parse::<i32>().unwrap();
-
-                    let to_place = BlockToPlace {
-                        column_position,
-                        position_in_column,
-                        block_id,
-                    };
-
-                    self.block_to_place.push(to_place);
+                    new_chunk.data.push(bincode::deserialize(&buffer).unwrap());
                 }
+
+                self.chunk_data.push(new_chunk);
+            } else if buffer[0] == b'N' {
+                let mut buffer: [u8; 24] = [0; 24];
+                reader.read_exact(&mut buffer)?;
+
+                self.block_to_place
+                    .push(bincode::deserialize(&buffer).unwrap());
+            } else {
+                panic!("Unknown save data type {}", buffer[0]);
             }
         }
+
+        println!("Done Reading Save!");
 
         Ok(())
     }

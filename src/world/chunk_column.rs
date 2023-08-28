@@ -1,5 +1,8 @@
+use serde::{Deserialize, Serialize};
+
 use crate::vector_types::{Vec2, Vec3};
 
+#[derive(Serialize, Deserialize)]
 pub struct CompressedSet {
     pub id: i32,
     pub count: i32,
@@ -19,11 +22,6 @@ impl Chunk {
         }
     }
 
-    /// Fills the chunk with the given block id
-    // pub fn fill(&mut self, id: i32) {
-    //     self.blocks = [id; 4096];
-    // }
-
     fn xyz_to_i(x: u8, y: u8, z: u8) -> u16 {
         256 * z as u16 + 16 * y as u16 + x as u16
     }
@@ -37,11 +35,6 @@ impl Chunk {
     pub fn set_block(&mut self, x: u8, y: u8, z: u8, id: i32) {
         self.blocks[Chunk::xyz_to_i(x, y, z) as usize] = id;
     }
-
-    /// Gets the block at position `i`
-    // pub fn get_block_i(&self, i: u16) -> i32 {
-    // self.blocks[i as usize]
-    // }
 
     /// Gets the block at position (`x`,`y`,`z`)
     pub fn get_block(&self, x: u8, y: u8, z: u8) -> i32 {
@@ -83,7 +76,7 @@ pub struct ChunkColumn {
 }
 
 impl ChunkColumn {
-    /// Creates a new ChunkColumn filled with `id` (16 chunks tall)
+    // Creates a new ChunkColumn filled with `id` (16 chunks tall)
     pub fn new(position: &Vec2<i32>, id: i32) -> ChunkColumn {
         let mut col = ChunkColumn { chunks: Vec::new() };
 

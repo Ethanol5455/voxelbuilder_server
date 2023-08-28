@@ -10,10 +10,9 @@ use save_file::SaveFile;
 
 use enet::*;
 use std::net::Ipv4Addr;
-use std::path::Path;
+use std::str;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::{fs, str};
 
 mod packets;
 use packets::PacketType;
@@ -46,14 +45,10 @@ fn run() {
 
     let save_directory = "./save";
     let mut save = SaveFile::new(Some(save_directory.to_owned()));
-    // let mut save = SaveFile::new(None);
-    save.load();
+    save.load().unwrap();
 
     let mut item_manager = items::ItemManager::new();
     item_manager.load_items(save.get_script_path("loadAssetInfo".to_string()));
-
-    // panic!("Dead");
-    // let save = SaveFile::load_save("./save".to_string());
 
     let mut world = World::new(item_manager, save);
 

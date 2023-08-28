@@ -1,6 +1,7 @@
 use byteorder::ByteOrder;
+use serde::{Deserialize, Serialize};
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Copy, Clone, Debug, Eq, PartialEq)]
 pub struct Vec2<T> {
     pub x: T,
     pub y: T,
@@ -36,7 +37,7 @@ impl Vec2<f32> {
     }
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Copy, Clone, Debug, Eq, PartialEq)]
 pub struct Vec3<T> {
     pub x: T,
     pub y: T,

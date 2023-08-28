@@ -3,6 +3,7 @@ pub use chunk_column::{Chunk, ChunkColumn};
 
 use fast_noise_lite_rs::{FastNoiseLite, NoiseType};
 use rlua::Lua;
+use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 use std::fs;
 
@@ -11,6 +12,7 @@ use crate::items::ItemManager;
 use crate::save_file::SaveFile;
 use crate::vector_types::{Vec2, Vec3};
 
+#[derive(Serialize, Deserialize)]
 pub struct BlockToPlace {
     pub column_position: Vec2<i32>,
     pub position_in_column: Vec3<i32>,
@@ -324,8 +326,10 @@ impl World {
         // TODO: Save block_to_place
 
         println!("Writing save file");
-        self.save_file.write_save();
-        println!("Save file written");
+        match self.save_file.write_save() {
+            Ok(_) => println!("Save file written"),
+            Err(e) => eprintln!("Save file NOT written with error {}", e),
+        }
     }
 }
 

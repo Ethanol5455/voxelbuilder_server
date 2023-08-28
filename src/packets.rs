@@ -1,8 +1,8 @@
 use byteorder::ByteOrder;
 
 pub enum PacketType {
-    PlayerConnect,
-    PlayerDisconnect,
+    // PlayerConnect,
+    // PlayerDisconnect,
     PlayerInfoRequest, // Get saved player data from file (if available)
     PlayerInfoData,    // Data about a player to save, sent at a fixed interval from the client
     ChunkRequest,      // Request from the client to send data about a chunk
