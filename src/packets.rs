@@ -1,5 +1,3 @@
-use byteorder::ByteOrder;
-
 #[allow(dead_code)]
 pub enum PacketType {
     PlayerConnect,
@@ -32,11 +30,11 @@ pub fn assemble_player_info_data(player: &Player) -> Vec<u8> {
     packet_data.push('\0' as u8);
 
     // position
-    let mut pos = player.position.to_u8_vec();
+    let mut pos = bincode::serialize(&player.position).unwrap();
     packet_data.append(&mut pos);
 
     // rotation
-    let mut rot = player.rotation.to_u8_vec();
+    let mut rot = bincode::serialize(&player.rotation).unwrap();
     packet_data.append(&mut rot);
 
     packet_data
@@ -47,24 +45,22 @@ pub fn assemble_chunk_contents_packet(col: &mut ChunkColumn) -> Vec<u8> {
 
     packet_data.push(PacketType::ChunkContents as u8);
 
-    let mut buf: [u8; 4] = [0; 4];
-
     let chunks = col.get_chunks();
     for chunk in chunks {
-        let mut pos = chunk.position.to_u8_vec();
+        let mut pos = bincode::serialize(&chunk.position).unwrap();
         packet_data.append(&mut pos);
 
         let compressed_data = chunk.compress();
 
         for set in compressed_data {
-            byteorder::LittleEndian::write_i32(&mut buf, set.id); // set id
-            packet_data.append(&mut buf.to_vec());
-            byteorder::LittleEndian::write_i32(&mut buf, set.count); // set number
-            packet_data.append(&mut buf.to_vec());
+            let mut id = bincode::serialize(&set.id).unwrap();
+            packet_data.append(&mut id);
+            let mut count = bincode::serialize(&set.count).unwrap();
+            packet_data.append(&mut count);
         }
 
-        byteorder::LittleEndian::write_i32(&mut buf, -1); // end of chunk indicator
-        packet_data.append(&mut buf.to_vec());
+        let mut end_indicator = bincode::serialize(&(-1)).unwrap();
+        packet_data.append(&mut end_indicator);
     }
 
     packet_data

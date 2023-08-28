@@ -1,5 +1,5 @@
 mod vector_types;
-use vector_types::{Vec2, Vec3};
+use vector_types::Vec2;
 
 mod items;
 
@@ -16,8 +16,6 @@ use std::sync::Arc;
 
 mod packets;
 use packets::PacketType;
-
-use byteorder::ByteOrder;
 
 use crate::packets::*;
 
@@ -64,7 +62,6 @@ fn run() {
             Some(Event::Connect(_)) => println!("Connected!"),
             Some(Event::Disconnect(..)) => {
                 println!("Disconnected!");
-                break;
             }
             Some(Event::Receive {
                 ref mut sender,
@@ -84,23 +81,23 @@ fn run() {
                 } else if data[0] == PacketType::PlayerInfoData as u8 {
                     // [0: Type][1-12: position][13-20: rotation][21-: username]
                     let username = str::from_utf8(&data[21..(data.len() - 1)]).unwrap();
-                    let position = Vec3::<f32>::from_u8_arr(&data[1..13]);
-                    let rotation = Vec2::from_u8_arr(&data[13..21]);
+                    let position = bincode::deserialize(&data[1..13]).unwrap();
+                    let rotation = bincode::deserialize(&data[13..21]).unwrap();
 
                     let player = world.get_save_file().get_user_data(&username.to_string());
                     player.position = position;
                     player.rotation = rotation;
                 } else if data[0] == PacketType::ChunkRequest as u8 {
                     // [0: Type][1-4: column X][5-8: column Z]
-                    let col_x = byteorder::LittleEndian::read_i32(&data[1..5]);
-                    let col_z = byteorder::LittleEndian::read_i32(&data[5..9]);
+                    let col_x = bincode::deserialize(&data[1..5]).unwrap();
+                    let col_z = bincode::deserialize(&data[5..9]).unwrap();
                     let col = world.get_column(&Vec2::new(col_x, col_z));
 
                     let packet_data = assemble_chunk_contents_packet(col);
                     let packet = Packet::new(&packet_data, PacketMode::ReliableSequenced).unwrap();
                     sender.send_packet(packet, channel_id).unwrap();
                 } else if data[0] == PacketType::ChunkUpdate as u8 {
-                    let block_pos = Vec3::<i32>::from_u8_arr(&data[1..13]);
+                    let block_pos = bincode::deserialize(&data[1..13]).unwrap();
                     let action_type = data[13];
 
                     let existing_id = world.get_block(&block_pos);
@@ -111,7 +108,7 @@ fn run() {
                                 existing_id, block_pos.x, block_pos.y, block_pos.z
                             );
                         } else {
-                            let block_id = byteorder::LittleEndian::read_u32(&data[14..18]);
+                            let block_id: u32 = bincode::deserialize(&data[14..18]).unwrap();
                             world.set_block(&block_pos, block_id as i32);
                         }
                     } else if action_type == ChunkUpdateType::DestroyBlockEvent as u8 {
