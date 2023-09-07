@@ -10,7 +10,7 @@ use save_file::SaveFile;
 
 use enet::*;
 use std::net::Ipv4Addr;
-use std::str;
+use std::{str, env};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
@@ -27,6 +27,8 @@ fn main() {
 }
 
 fn run() {
+    let args: Vec<String> = env::args().collect();
+    let init_only = args.contains(&"i".to_string()) || args.contains(&"I".to_string()) || args.contains(&"init".to_string()) || args.contains(&"Init".to_string());
     let enet = Enet::new().unwrap();
 
     let address = Address::new(Ipv4Addr::UNSPECIFIED, 1234);
@@ -57,7 +59,7 @@ fn run() {
     let term = Arc::new(AtomicBool::new(false));
     signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&term)).unwrap();
 
-    while !term.load(Ordering::Relaxed) {
+    while !init_only && !term.load(Ordering::Relaxed) {
         match server.service(1000).unwrap() {
             Some(Event::Connect(_)) => println!("Connected!"),
             Some(Event::Disconnect(..)) => {
