@@ -4,6 +4,8 @@ use std::io::{BufReader, Read, Write};
 use std::path::Path;
 use std::{fs, io};
 
+use anyhow::Result;
+
 use crate::player_data::Player;
 
 use crate::vector_types::{Vec2, Vec3};
@@ -134,13 +136,13 @@ impl SaveFile {
         self.chunk_data.push(data)
     }
 
-    pub fn write_save(&self) -> io::Result<()> {
+    pub fn write_save(&self) -> Result<()> {
         if self.save_directory.is_none() {
             eprintln!("Save directory not provided, save will not be written");
-            return Err(std::io::Error::new(
+            return Err(anyhow::Error::new(std::io::Error::new(
                 io::ErrorKind::InvalidInput,
                 "No save directory given!",
-            ));
+            )));
         }
         let directory_str = self.save_directory.clone().unwrap();
 
@@ -159,8 +161,8 @@ impl SaveFile {
                     continue;
                 }
             };
-            let binary_player = bincode::serialize(&player).unwrap();
-            file.write(&binary_player).unwrap();
+            let binary_player = bincode::serialize(&player)?;
+            file.write(&binary_player)?;
         }
 
         // World data
@@ -169,34 +171,33 @@ impl SaveFile {
             directory_str, SAVE_FILE_NAME, SAVE_FILE_EXTENSION
         )) {
             Ok(file) => file,
-            Err(e) => return Err(e),
+            Err(e) => return Err(anyhow::Error::new(e)),
         };
 
         // World seed
-        file.write(&bincode::serialize(&self.world_seed).unwrap())
-            .unwrap();
+        file.write(&bincode::serialize(&self.world_seed)?)?;
 
         // Compressed chunk data
         for chunk in &self.chunk_data {
             file.write(&[b'C'])?;
             // Chunk Position
-            file.write(&bincode::serialize(&chunk.position).unwrap())?;
-            file.write(&bincode::serialize(&(chunk.data.len() as u32)).unwrap())?;
+            file.write(&bincode::serialize(&chunk.position)?)?;
+            file.write(&bincode::serialize(&(chunk.data.len() as u32))?)?;
             for set in &chunk.data {
-                file.write(&bincode::serialize(&set).unwrap())?;
+                file.write(&bincode::serialize(&set)?)?;
             }
         }
 
         // Blocks to place
         for block in &self.block_to_place {
             file.write(&[b'N'])?;
-            file.write(&bincode::serialize(&block).unwrap())?;
+            file.write(&bincode::serialize(&block)?)?;
         }
 
         Ok(())
     }
 
-    pub fn load(&mut self) -> io::Result<()> {
+    pub fn load(&mut self) -> Result<()> {
         // Load saved users
         assert!(self.save_directory.is_some(), "Cannot load temporary save!");
         let directory_str = self.save_directory.clone().unwrap();
@@ -220,7 +221,7 @@ impl SaveFile {
                     let mut buffer = vec![0; metadata.len() as usize];
                     in_file.read(&mut buffer).expect("buffer overflow");
 
-                    let new_player: Player = bincode::deserialize(&buffer).unwrap();
+                    let new_player: Player = bincode::deserialize(&buffer)?;
                     self.players.insert(new_player.username.clone(), new_player);
                 }
             }
@@ -233,14 +234,14 @@ impl SaveFile {
             directory_str, SAVE_FILE_NAME, SAVE_FILE_EXTENSION
         )) {
             Ok(file) => file,
-            Err(e) => return Err(e),
+            Err(e) => return Err(e.into()),
         };
 
         let mut reader = BufReader::new(file);
 
         let mut buffer: [u8; 4] = [0; 4];
         reader.read_exact(&mut buffer)?;
-        self.world_seed = bincode::deserialize(&buffer).unwrap();
+        self.world_seed = bincode::deserialize(&buffer)?;
 
         loop {
             let mut buffer: [u8; 1] = [0; 1];
@@ -251,20 +252,20 @@ impl SaveFile {
                 let mut buffer: [u8; 12 + 4] = [0; 12 + 4];
                 reader.read_exact(&mut buffer)?;
 
-                let position: Vec3<i32> = bincode::deserialize(&buffer[..12]).unwrap();
+                let position: Vec3<i32> = bincode::deserialize(&buffer[..12])?;
                 let mut new_chunk = ChunkInfo {
                     position: position,
                     data: Vec::new(),
                 };
 
-                let num_sets: u32 = bincode::deserialize(&buffer[12..]).unwrap();
+                let num_sets: u32 = bincode::deserialize(&buffer[12..])?;
                 new_chunk.data.reserve(num_sets as usize);
 
                 for _ in 0..num_sets {
                     let mut buffer: [u8; 8] = [0; 8];
                     reader.read_exact(&mut buffer)?;
 
-                    new_chunk.data.push(bincode::deserialize(&buffer).unwrap());
+                    new_chunk.data.push(bincode::deserialize(&buffer)?);
                 }
 
                 self.chunk_data.push(new_chunk);
@@ -272,8 +273,7 @@ impl SaveFile {
                 let mut buffer: [u8; 24] = [0; 24];
                 reader.read_exact(&mut buffer)?;
 
-                self.block_to_place
-                    .push(bincode::deserialize(&buffer).unwrap());
+                self.block_to_place.push(bincode::deserialize(&buffer)?);
             } else {
                 panic!("Unknown save data type {}", buffer[0]);
             }
