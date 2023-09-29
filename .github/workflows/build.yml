@@ -12,5 +12,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+    - name: Clone common
+      run: cd .. && git clone https://github.com/Ethanol5455/voxelbuilder_common.git
     - name: Build
       run: cargo build --verbose
