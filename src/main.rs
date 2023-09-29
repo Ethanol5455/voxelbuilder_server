@@ -1,11 +1,9 @@
-mod vector_types;
-use vector_types::Vec2;
-
 mod items;
 
 mod player_data;
 
 mod save_file;
+use cgmath::Vector2;
 use save_file::SaveFile;
 
 use anyhow::Result;
@@ -17,7 +15,7 @@ use std::sync::Arc;
 use std::{env, str};
 
 mod packets;
-use packets::PacketType;
+use voxelbuilder_common::{ChunkUpdateType, PacketType};
 
 use crate::packets::*;
 
@@ -133,7 +131,7 @@ impl Game {
                         // [0: Type][1-4: column X][5-8: column Z]
                         let col_x = bincode::deserialize(&data[1..5]).unwrap();
                         let col_z = bincode::deserialize(&data[5..9]).unwrap();
-                        let col = self.world.get_column(&Vec2::new(col_x, col_z));
+                        let col = self.world.get_column(&Vector2::new(col_x, col_z));
 
                         let packet_data = assemble_chunk_contents_packet(col);
                         let packet =
@@ -170,8 +168,10 @@ impl Game {
                             );
                         }
 
-                        let col_position =
-                            World::world_to_column_position(&Vec2::new(block_pos.x, block_pos.z));
+                        let col_position = World::world_to_column_position(&Vector2::new(
+                            block_pos.x,
+                            block_pos.z,
+                        ));
                         let packet_data =
                             assemble_chunk_contents_packet(self.world.get_column(&col_position));
                         let packet =

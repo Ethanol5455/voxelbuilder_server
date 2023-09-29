@@ -5,12 +5,12 @@ use std::path::Path;
 use std::{fs, io};
 
 use anyhow::Result;
+use cgmath::{Vector2, Vector3};
 
 use crate::player_data::Player;
 
-use crate::vector_types::{Vec2, Vec3};
-use crate::world::chunk_column::CompressedSet;
-use crate::world::{BlockToPlace, Chunk};
+use crate::world::BlockToPlace;
+use voxelbuilder_common::{Chunk, CompressedSet};
 
 const DEFAULT_SCRIPT_SUBDIRECTORY: &str = "/default_scripts";
 const SAVE_FILE_NAME: &str = "worldData";
@@ -19,7 +19,7 @@ const PLAYER_SAVE_SUBDIRECTORY: &str = "/players";
 const SCRIPT_SAVE_SUBDIRECTORY: &str = "/scripts";
 
 pub struct ChunkInfo {
-    pub position: Vec3<i32>,
+    pub position: Vector3<i32>,
     pub data: Vec<CompressedSet>,
 }
 
@@ -91,7 +91,7 @@ impl SaveFile {
         }
     }
 
-    pub fn get_chunk(&self, position: Vec3<i32>) -> Option<&ChunkInfo> {
+    pub fn get_chunk(&self, position: Vector3<i32>) -> Option<&ChunkInfo> {
         for chunk in self.chunk_data.as_slice() {
             if chunk.position == position {
                 return Some(chunk);
@@ -108,8 +108,8 @@ impl SaveFile {
 
         let player = Player {
             username: username.to_string(),
-            position: Vec3::new(0.0, 80.0, 0.0),
-            rotation: Vec2::new(0.0, 0.0),
+            position: Vector3::new(0.0, 80.0, 0.0),
+            rotation: Vector2::new(0.0, 0.0),
         };
         self.players.insert(username.to_string(), player);
 
@@ -252,7 +252,7 @@ impl SaveFile {
                 let mut buffer: [u8; 12 + 4] = [0; 12 + 4];
                 reader.read_exact(&mut buffer)?;
 
-                let position: Vec3<i32> = bincode::deserialize(&buffer[..12])?;
+                let position: Vector3<i32> = bincode::deserialize(&buffer[..12])?;
                 let mut new_chunk = ChunkInfo {
                     position: position,
                     data: Vec::new(),

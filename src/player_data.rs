@@ -1,10 +1,9 @@
+use cgmath::{Vector2, Vector3};
 use serde::{Deserialize, Serialize};
-
-use crate::vector_types::*;
 
 #[derive(Serialize, Deserialize)]
 pub struct Player {
     pub username: String,
-    pub position: Vec3<f32>,
-    pub rotation: Vec2<f32>,
+    pub position: Vector3<f32>,
+    pub rotation: Vector2<f32>,
 }

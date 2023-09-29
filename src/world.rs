@@ -1,5 +1,6 @@
 pub mod chunk_column;
-pub use chunk_column::{Chunk, ChunkColumn};
+use cgmath::{Vector2, Vector3};
+pub use chunk_column::ChunkColumn;
 
 use fast_noise_lite_rs::{FastNoiseLite, NoiseType};
 use rlua::Lua;
@@ -10,12 +11,11 @@ use std::fs;
 use crate::items::ItemManager;
 
 use crate::save_file::SaveFile;
-use crate::vector_types::{Vec2, Vec3};
 
 #[derive(Serialize, Deserialize)]
 pub struct BlockToPlace {
-    pub column_position: Vec2<i32>,
-    pub position_in_column: Vec3<i32>,
+    pub column_position: Vector2<i32>,
+    pub position_in_column: Vector3<i32>,
     pub block_id: i32,
 }
 
@@ -67,7 +67,7 @@ impl World {
     }
 
     /// Generates a new column at the given position (`x`,`y`)
-    fn generate_column(&mut self, pos: &Vec2<i32>) {
+    fn generate_column(&mut self, pos: &Vector2<i32>) {
         let mut col = ChunkColumn::new(pos, 0);
         let col_ptr = &mut col as *mut ChunkColumn;
 
@@ -77,7 +77,7 @@ impl World {
         for height in 0..16 as u8 {
             let saved_chunk =
                 self.save_file
-                    .get_chunk(Vec3::<i32>::new(pos.x, height as i32, pos.y));
+                    .get_chunk(Vector3::<i32>::new(pos.x, height as i32, pos.y));
             match saved_chunk {
                 Some(chunk_data) => {
                     let chunk = col.get_chunk(height as u8);
@@ -96,7 +96,7 @@ impl World {
         }
 
         struct ToPlaceAfter {
-            position: Vec3<i32>,
+            position: Vector3<i32>,
             id: i32,
         }
 
@@ -149,11 +149,11 @@ impl World {
                         .create_function(|_, (x, y, z, id): (i32, i32, i32, i32)| {
                             if x >= 0 && x < 16 && y >= 0 && y < 16 {
                                 unsafe {
-                                    (*col_ptr).set_block(&Vec3::new(x, y, z), id);
+                                    (*col_ptr).set_block(&Vector3::new(x, y, z), id);
                                 }
                             } else {
                                 let to_place = ToPlaceAfter {
-                                    position: Vec3::new(pos.x * 16 + x, y, pos.y * 16 + z),
+                                    position: Vector3::new(pos.x * 16 + x, y, pos.y * 16 + z),
                                     id,
                                 };
                                 unsafe {
@@ -198,13 +198,13 @@ impl World {
     }
 
     /// Returns whether the column at `pos` exists
-    pub fn does_column_exist(&self, pos: &Vec2<i32>) -> bool {
+    pub fn does_column_exist(&self, pos: &Vector2<i32>) -> bool {
         self.column_map.contains_key(&pos.x)
             && self.column_map.get(&pos.x).unwrap().contains_key(&pos.y)
     }
 
     /// Gets the column at `pos` and generates the column if it doesn't exist
-    pub fn get_column(&mut self, pos: &Vec2<i32>) -> &mut ChunkColumn {
+    pub fn get_column(&mut self, pos: &Vector2<i32>) -> &mut ChunkColumn {
         if !self.does_column_exist(pos) {
             self.generate_column(pos);
         }
@@ -217,8 +217,8 @@ impl World {
     }
 
     /// Translates absolute world position to absolute column position
-    pub fn world_to_column_position(pos: &Vec2<i32>) -> Vec2<i32> {
-        let mut column_position = Vec2::new(pos.x / 16, pos.y / 16);
+    pub fn world_to_column_position(pos: &Vector2<i32>) -> Vector2<i32> {
+        let mut column_position = Vector2::new(pos.x / 16, pos.y / 16);
 
         if pos.x < 0 && -pos.x % 16 != 0 {
             column_position.x -= 1;
@@ -231,8 +231,8 @@ impl World {
     }
 
     /// Translates absolute world position to absolute chunk position
-    pub fn world_to_chunk_position(pos: &Vec3<i32>) -> Vec3<i32> {
-        let mut chunk_position = Vec3::new(pos.x / 16, pos.y / 16, pos.z / 16);
+    pub fn world_to_chunk_position(pos: &Vector3<i32>) -> Vector3<i32> {
+        let mut chunk_position = Vector3::new(pos.x / 16, pos.y / 16, pos.z / 16);
 
         if pos.x < 0 && -pos.x % 16 != 0 {
             chunk_position.x -= 1;
@@ -248,8 +248,8 @@ impl World {
     }
 
     /// Translates absolute world position into internal chunk position
-    pub fn world_to_position_in_chunk(pos: &Vec3<i32>) -> Vec3<i32> {
-        let mut block_pos_in_chunk = Vec3::new(pos.x % 16, pos.y % 16, pos.z % 16);
+    pub fn world_to_position_in_chunk(pos: &Vector3<i32>) -> Vector3<i32> {
+        let mut block_pos_in_chunk = Vector3::new(pos.x % 16, pos.y % 16, pos.z % 16);
 
         if block_pos_in_chunk.x < 0 {
             block_pos_in_chunk.x += 16;
@@ -265,11 +265,11 @@ impl World {
     }
 
     /// Gets the block at `pos`
-    pub fn get_block(&mut self, position: &Vec3<i32>) -> i32 {
+    pub fn get_block(&mut self, position: &Vector3<i32>) -> i32 {
         let chunk_position = World::world_to_chunk_position(position);
         let block_position_in_chunk = World::world_to_position_in_chunk(position);
 
-        let column = self.get_column(&Vec2::new(chunk_position.x, chunk_position.z));
+        let column = self.get_column(&Vector2::new(chunk_position.x, chunk_position.z));
         if !(chunk_position.y >= 0 && chunk_position.y <= 15) {
             return -1;
         }
@@ -282,7 +282,7 @@ impl World {
     }
 
     /// Sets the block at `pos` to `id`
-    pub fn set_block(&mut self, position: &Vec3<i32>, id: i32) {
+    pub fn set_block(&mut self, position: &Vector3<i32>, id: i32) {
         if self.item_manager.get_item_by_id(id).is_none() {
             println!("Tried to set block of unknown id {}", id);
             return;
@@ -291,11 +291,11 @@ impl World {
         let chunk_position = World::world_to_chunk_position(position);
         let block_position_in_chunk = World::world_to_position_in_chunk(position);
 
-        if !self.does_column_exist(&Vec2::new(chunk_position.x, chunk_position.z)) {
-            self.generate_column(&Vec2::new(chunk_position.x, chunk_position.z));
+        if !self.does_column_exist(&Vector2::new(chunk_position.x, chunk_position.z)) {
+            self.generate_column(&Vector2::new(chunk_position.x, chunk_position.z));
         }
 
-        self.get_column(&Vec2::new(chunk_position.x, chunk_position.z))
+        self.get_column(&Vector2::new(chunk_position.x, chunk_position.z))
             .get_chunk(chunk_position.y as u8)
             .set_block(
                 block_position_in_chunk.x as u8,
@@ -343,8 +343,8 @@ mod tests {
         for x in 0..48 {
             for z in 0..48 {
                 assert_eq!(
-                    World::world_to_column_position(&Vec2::new(x, z)),
-                    Vec2::new(x / 16, z / 16)
+                    World::world_to_column_position(&Vector2::new(x, z)),
+                    Vector2::new(x / 16, z / 16)
                 );
             }
         }
@@ -361,8 +361,8 @@ mod tests {
                     correct_z -= 1;
                 }
                 assert_eq!(
-                    World::world_to_column_position(&Vec2::new(x, z)),
-                    Vec2::new(correct_x, correct_z)
+                    World::world_to_column_position(&Vector2::new(x, z)),
+                    Vector2::new(correct_x, correct_z)
                 );
             }
         }
@@ -375,8 +375,8 @@ mod tests {
             for y in 0..48 {
                 for z in 0..48 {
                     assert_eq!(
-                        World::world_to_chunk_position(&Vec3::new(x, y, z)),
-                        Vec3::new(x / 16, y / 16, z / 16)
+                        World::world_to_chunk_position(&Vector3::new(x, y, z)),
+                        Vector3::new(x / 16, y / 16, z / 16)
                     );
                 }
             }
@@ -399,8 +399,8 @@ mod tests {
                         correct_z -= 1;
                     }
                     assert_eq!(
-                        World::world_to_chunk_position(&Vec3::new(x, y, z)),
-                        Vec3::new(correct_x, correct_y, correct_z)
+                        World::world_to_chunk_position(&Vector3::new(x, y, z)),
+                        Vector3::new(correct_x, correct_y, correct_z)
                     );
                 }
             }
@@ -414,8 +414,8 @@ mod tests {
             for y in 0..16 {
                 for z in 0..16 {
                     assert_eq!(
-                        World::world_to_position_in_chunk(&Vec3::new(x, y, z)),
-                        Vec3::new(x, y, z)
+                        World::world_to_position_in_chunk(&Vector3::new(x, y, z)),
+                        Vector3::new(x, y, z)
                     );
                 }
             }
@@ -426,8 +426,8 @@ mod tests {
             for y in 16..32 {
                 for z in 16..32 {
                     assert_eq!(
-                        World::world_to_position_in_chunk(&Vec3::new(x, y, z)),
-                        Vec3::new(x - 16, y - 16, z - 16)
+                        World::world_to_position_in_chunk(&Vector3::new(x, y, z)),
+                        Vector3::new(x - 16, y - 16, z - 16)
                     );
                 }
             }
@@ -438,8 +438,8 @@ mod tests {
             for y in -16..0 {
                 for z in -16..0 {
                     assert_eq!(
-                        World::world_to_position_in_chunk(&Vec3::new(x, y, z)),
-                        Vec3::new(x + 16, y + 16, z + 16)
+                        World::world_to_position_in_chunk(&Vector3::new(x, y, z)),
+                        Vector3::new(x + 16, y + 16, z + 16)
                     );
                 }
             }

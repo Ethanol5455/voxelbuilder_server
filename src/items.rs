@@ -1,5 +1,4 @@
-use crate::vector_types::Vec2;
-
+use cgmath::Vector2;
 use rlua::Lua;
 use std::fs;
 
@@ -15,9 +14,9 @@ pub struct ItemData {
     pub is_transparent: bool,
     pub show_in_inventory: bool,
     pub name: String,
-    pub top_tex_coords: Vec2<u16>,
-    pub side_tex_coords: Vec2<u16>,
-    pub bottom_tex_coords: Vec2<u16>,
+    pub top_tex_coords: Vector2<u16>,
+    pub side_tex_coords: Vector2<u16>,
+    pub bottom_tex_coords: Vector2<u16>,
 }
 
 pub struct ItemManager {
@@ -82,9 +81,9 @@ impl ItemManager {
                             is_transparent,
                             show_in_inventory,
                             name: item_name,
-                            top_tex_coords: Vec2::new(coords[0] as u16, coords[1] as u16),
-                            side_tex_coords: Vec2::new(coords[2] as u16, coords[3] as u16),
-                            bottom_tex_coords: Vec2::new(coords[4] as u16, coords[5] as u16),
+                            top_tex_coords: Vector2::new(coords[0] as u16, coords[1] as u16),
+                            side_tex_coords: Vector2::new(coords[2] as u16, coords[3] as u16),
+                            bottom_tex_coords: Vector2::new(coords[4] as u16, coords[5] as u16),
                         };
 
                         self.put_new_item(new_item);
